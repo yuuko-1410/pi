@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "pi-ai"
+version = "0.84.1"
+dependencies = [
+ "pi-protocol",
+ "pi-telemetry",
+]
+
+[[package]]
 name = "pi-protocol"
 version = "0.84.1"
 

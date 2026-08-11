@@ -1,0 +1,11 @@
+[package]
+name = "pi-ai"
+version = "0.84.1"
+edition = "2024"
+rust-version = "1.97"
+description = "LLM provider abstractions for pi (Rust port of @earendil-works/pi-ai, types and core utilities layer)"
+license = "MIT"
+
+[dependencies]
+pi-protocol = { path = "../pi-protocol" }
+pi-telemetry = { path = "../pi-telemetry" }
