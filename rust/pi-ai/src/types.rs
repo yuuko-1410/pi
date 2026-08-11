@@ -741,3 +741,152 @@ pub struct ImagesModel {
     pub provider: ImagesProviderId,
     pub output: Vec<String>,
 }
+
+impl JsonSchemaObject {
+    /// Serializes like `JSON.stringify` of the schema object: only present
+    /// fields, `type` as string or array.
+    pub fn to_value(&self) -> pi_protocol::Value {
+        let mut entries = Vec::new();
+        if let Some(type_) = &self.type_ {
+            entries.push((
+                "type".to_string(),
+                if type_.len() == 1 {
+                    pi_protocol::Value::String(type_[0].clone())
+                } else {
+                    pi_protocol::Value::Array(type_.iter().map(|t| pi_protocol::Value::String(t.clone())).collect())
+                },
+            ));
+        }
+        if let Some(description) = &self.description {
+            entries.push(("description".to_string(), pi_protocol::Value::String(description.clone())));
+        }
+        if let Some(properties) = &self.properties {
+            entries.push((
+                "properties".to_string(),
+                pi_protocol::Value::Map(
+                    properties
+                        .iter()
+                        .map(|(key, sub)| (key.clone(), sub.to_value()))
+                        .collect(),
+                ),
+            ));
+        }
+        if let Some(required) = &self.required {
+            entries.push((
+                "required".to_string(),
+                pi_protocol::Value::Array(required.iter().map(|name| pi_protocol::Value::String(name.clone())).collect()),
+            ));
+        }
+        if let Some(items) = &self.items {
+            entries.push((
+                "items".to_string(),
+                match &**items {
+                    JsonSchemaValue::Schema(sub) => sub.to_value(),
+                    JsonSchemaValue::Schemas(list) => {
+                        pi_protocol::Value::Array(list.iter().map(|sub| sub.to_value()).collect())
+                    }
+                },
+            ));
+        }
+        if let Some(additional) = &self.additional_properties {
+            entries.push((
+                "additionalProperties".to_string(),
+                match additional {
+                    JsonSchemaAdditional::Bool(b) => pi_protocol::Value::Bool(*b),
+                    JsonSchemaAdditional::Schema(sub) => sub.to_value(),
+                },
+            ));
+        }
+        if let Some(all_of) = &self.all_of {
+            entries.push(("allOf".to_string(), pi_protocol::Value::Array(all_of.iter().map(|sub| sub.to_value()).collect())));
+        }
+        if let Some(any_of) = &self.any_of {
+            entries.push(("anyOf".to_string(), pi_protocol::Value::Array(any_of.iter().map(|sub| sub.to_value()).collect())));
+        }
+        if let Some(one_of) = &self.one_of {
+            entries.push(("oneOf".to_string(), pi_protocol::Value::Array(one_of.iter().map(|sub| sub.to_value()).collect())));
+        }
+        if let Some(enum_values) = &self.enum_values {
+            entries.push(("enum".to_string(), pi_protocol::Value::Array(enum_values.clone())));
+        }
+        if let Some(default) = &self.default {
+            entries.push(("default".to_string(), default.clone()));
+        }
+        if let Some(const_value) = &self.const_value {
+            entries.push(("const".to_string(), const_value.clone()));
+        }
+        for (key, value) in [
+            ("minimum", self.minimum),
+            ("maximum", self.maximum),
+            ("exclusiveMinimum", self.exclusive_minimum),
+            ("exclusiveMaximum", self.exclusive_maximum),
+            ("minLength", self.min_length),
+            ("maxLength", self.max_length),
+            ("minItems", self.min_items),
+            ("maxItems", self.max_items),
+            ("minProperties", self.min_properties),
+            ("maxProperties", self.max_properties),
+        ] {
+            if let Some(value) = value {
+                entries.push((key.to_string(), pi_protocol::Value::Number(value)));
+            }
+        }
+        if let Some(pattern) = &self.pattern {
+            entries.push(("pattern".to_string(), pi_protocol::Value::String(pattern.clone())));
+        }
+        if let Some(unique_items) = self.unique_items {
+            entries.push(("uniqueItems".to_string(), pi_protocol::Value::Bool(unique_items)));
+        }
+        if let Some(nullable) = self.nullable {
+            entries.push(("nullable".to_string(), pi_protocol::Value::Bool(nullable)));
+        }
+        if let Some(not) = &self.not {
+            entries.push(("not".to_string(), not.to_value()));
+        }
+        pi_protocol::Value::Map(entries)
+    }
+}
+
+impl Tool {
+    /// Serializes like `JSON.stringify` would (all declared fields).
+    pub fn to_value(&self) -> pi_protocol::Value {
+        let mut entries = vec![
+            ("name".to_string(), pi_protocol::Value::String(self.name.clone())),
+            ("description".to_string(), pi_protocol::Value::String(self.description.clone())),
+            ("parameters".to_string(), self.parameters.to_value()),
+        ];
+        match &self.constrained_sampling {
+            None => {}
+            Some(ConstrainedSampling::Disabled) => {
+                entries.push(("constrainedSampling".to_string(), pi_protocol::Value::Bool(false)))
+            }
+            Some(ConstrainedSampling::Config(config)) => {
+                entries.push(("constrainedSampling".to_string(), config.to_value()))
+            }
+        }
+        pi_protocol::Value::Map(entries)
+    }
+}
+
+impl ConstrainedSamplingConfig {
+    pub fn to_value(&self) -> pi_protocol::Value {
+        match self {
+            Self::JsonSchema { strict } => pi_protocol::Value::Map(vec![
+                ("type".to_string(), pi_protocol::Value::String("json_schema".to_string())),
+                ("strict".to_string(), pi_protocol::Value::String(strict.clone())),
+            ]),
+            Self::Grammar { variants } => pi_protocol::Value::Map(vec![
+                ("type".to_string(), pi_protocol::Value::String("grammar".to_string())),
+                (
+                    "variants".to_string(),
+                    pi_protocol::Value::Map(
+                        variants
+                            .iter()
+                            .map(|(format, grammar)| (format.clone(), pi_protocol::Value::String(grammar.clone())))
+                            .collect(),
+                    ),
+                ),
+            ]),
+        }
+    }
+}

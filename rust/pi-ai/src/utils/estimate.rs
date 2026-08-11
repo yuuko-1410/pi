@@ -3,7 +3,7 @@
 use pi_protocol::Value;
 
 use crate::types::{
-    Content, ConstrainedSampling, Context, JsonSchemaAdditional, JsonSchemaObject, JsonSchemaValue, Message,
+    Content, Context, Message,
     StopReason, Tool, Usage,
 };
 
@@ -37,163 +37,7 @@ fn safe_json_stringify(value: &Value) -> String {
 }
 
 fn json_stringify(value: &Value) -> String {
-    match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(true) => "true".to_string(),
-        Value::Bool(false) => "false".to_string(),
-        Value::Number(n) => js_number_string(*n),
-        Value::String(s) => json_quote(s),
-        Value::Bytes(_) => "{}".to_string(),
-        Value::Array(items) => {
-            let inner: Vec<String> = items.iter().map(json_stringify).collect();
-            format!("[{}]", inner.join(","))
-        }
-        Value::Map(entries) => {
-            let inner: Vec<String> = entries
-                .iter()
-                .map(|(key, value)| format!("{}:{}", json_quote(key), json_stringify(value)))
-                .collect();
-            format!("{{{}}}", inner.join(","))
-        }
-    }
-}
-
-fn json_quote(s: &str) -> String {
-    let mut result = String::with_capacity(s.len() + 2);
-    result.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => result.push_str("\\\""),
-            '\\' => result.push_str("\\\\"),
-            '\n' => result.push_str("\\n"),
-            '\r' => result.push_str("\\r"),
-            '\t' => result.push_str("\\t"),
-            '\u{08}' => result.push_str("\\b"),
-            '\u{0c}' => result.push_str("\\f"),
-            c if (c as u32) < 0x20 => result.push_str(&format!("\\u{:04x}", c as u32)),
-            c => result.push(c),
-        }
-    }
-    result.push('"');
-    result
-}
-
-/// Mirrors JS `String(number)` as produced by JSON.stringify: integers below
-/// 1e21 print without an exponent; other magnitudes use `e` notation.
-fn js_number_string(n: f64) -> String {
-    if n == n.trunc() && n.abs() < 1e21 {
-        format!("{}", n as i64)
-    } else {
-        let abs = n.abs();
-        if abs != 0.0 && (abs >= 1e21 || abs < 1e-6) {
-            let exp = format!("{:e}", n);
-            exp.replace('e', "e+").replace("e+-", "e-")
-        } else {
-            format!("{}", n)
-        }
-    }
-}
-
-/// Serializes a tool like `JSON.stringify` would (all declared fields).
-fn tool_to_value(tool: &Tool) -> Value {
-    let mut entries = vec![
-        ("name".to_string(), Value::String(tool.name.clone())),
-        ("description".to_string(), Value::String(tool.description.clone())),
-        ("parameters".to_string(), schema_to_value(&tool.parameters)),
-    ];
-    match &tool.constrained_sampling {
-        None => {}
-        Some(ConstrainedSampling::Disabled) => entries.push(("constrainedSampling".to_string(), Value::Bool(false))),
-        Some(ConstrainedSampling::Config(config)) => entries.push((
-            "constrainedSampling".to_string(),
-            constrained_sampling_to_value(config),
-        )),
-    }
-    Value::Map(entries)
-}
-
-fn constrained_sampling_to_value(config: &crate::types::ConstrainedSamplingConfig) -> Value {
-    match config {
-        crate::types::ConstrainedSamplingConfig::JsonSchema { strict } => Value::Map(vec![
-            ("type".to_string(), Value::String("json_schema".to_string())),
-            ("strict".to_string(), Value::String(strict.clone())),
-        ]),
-        crate::types::ConstrainedSamplingConfig::Grammar { variants } => Value::Map(vec![
-            ("type".to_string(), Value::String("grammar".to_string())),
-            (
-                "variants".to_string(),
-                Value::Map(
-                    variants
-                        .iter()
-                        .map(|(format, grammar)| (format.clone(), Value::String(grammar.clone())))
-                        .collect(),
-                ),
-            ),
-        ]),
-    }
-}
-
-/// Serializes a JSON schema object like `JSON.stringify` of the TypeBox
-/// object: only present fields, `type` as string or array.
-fn schema_to_value(schema: &JsonSchemaObject) -> Value {
-    let mut entries = Vec::new();
-    if let Some(type_) = &schema.type_ {
-        entries.push((
-            "type".to_string(),
-            if type_.len() == 1 {
-                Value::String(type_[0].clone())
-            } else {
-                Value::Array(type_.iter().map(|t| Value::String(t.clone())).collect())
-            },
-        ));
-    }
-    if let Some(properties) = &schema.properties {
-        entries.push((
-            "properties".to_string(),
-            Value::Map(
-                properties
-                    .iter()
-                    .map(|(key, sub)| (key.clone(), schema_to_value(sub)))
-                    .collect(),
-            ),
-        ));
-    }
-    if let Some(items) = &schema.items {
-        entries.push((
-            "items".to_string(),
-            match &**items {
-                JsonSchemaValue::Schema(sub) => schema_to_value(sub),
-                JsonSchemaValue::Schemas(list) => {
-                    Value::Array(list.iter().map(schema_to_value).collect())
-                }
-            },
-        ));
-    }
-    if let Some(additional) = &schema.additional_properties {
-        entries.push((
-            "additionalProperties".to_string(),
-            match additional {
-                JsonSchemaAdditional::Bool(b) => Value::Bool(*b),
-                JsonSchemaAdditional::Schema(sub) => schema_to_value(sub),
-            },
-        ));
-    }
-    if let Some(all_of) = &schema.all_of {
-        entries.push(("allOf".to_string(), Value::Array(all_of.iter().map(schema_to_value).collect())));
-    }
-    if let Some(any_of) = &schema.any_of {
-        entries.push(("anyOf".to_string(), Value::Array(any_of.iter().map(schema_to_value).collect())));
-    }
-    if let Some(one_of) = &schema.one_of {
-        entries.push(("oneOf".to_string(), Value::Array(one_of.iter().map(schema_to_value).collect())));
-    }
-    if let Some(enum_values) = &schema.enum_values {
-        entries.push(("enum".to_string(), Value::Array(enum_values.clone())));
-    }
-    if let Some(default) = &schema.default {
-        entries.push(("default".to_string(), default.clone()));
-    }
-    Value::Map(entries)
+    crate::utils::json::json_stringify(value)
 }
 
 fn estimate_text_and_image_content_chars(content: &[Content]) -> f64 {
@@ -303,7 +147,7 @@ fn estimate_tools_tokens(tools: &[&Tool]) -> f64 {
     if tools.is_empty() {
         return 0.0;
     }
-    let serialized: Vec<Value> = tools.iter().map(|tool| tool_to_value(tool)).collect();
+    let serialized: Vec<Value> = tools.iter().map(|tool| Tool::to_value(tool)).collect();
     estimate_text_tokens(&safe_json_stringify(&Value::Array(serialized)))
 }
 

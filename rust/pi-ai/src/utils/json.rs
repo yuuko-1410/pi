@@ -605,3 +605,58 @@ mod tests {
         assert_eq!(value, Value::Map(vec![("a".to_string(), Value::String("x\n".to_string()))]));
     }
 }
+
+/// Serializes a value like `JSON.stringify` (compact, no whitespace). Shared
+/// by the API conversion layer.
+pub fn json_stringify(value: &Value) -> String {
+    fn quote(s: &str) -> String {
+        let mut result = String::with_capacity(s.len() + 2);
+        result.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => result.push_str("\\\""),
+                '\\' => result.push_str("\\\\"),
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                '\t' => result.push_str("\\t"),
+                '\u{08}' => result.push_str("\\b"),
+                '\u{0c}' => result.push_str("\\f"),
+                c if (c as u32) < 0x20 => result.push_str(&format!("\\u{:04x}", c as u32)),
+                c => result.push(c),
+            }
+        }
+        result.push('"');
+        result
+    }
+    fn number(n: f64) -> String {
+        if n == n.trunc() && n.abs() < 1e21 {
+            format!("{}", n as i64)
+        } else {
+            let abs = n.abs();
+            if abs != 0.0 && (abs >= 1e21 || abs < 1e-6) {
+                format!("{:e}", n).replace('e', "e+").replace("e+-", "e-")
+            } else {
+                format!("{}", n)
+            }
+        }
+    }
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(true) => "true".to_string(),
+        Value::Bool(false) => "false".to_string(),
+        Value::Number(n) => number(*n),
+        Value::String(s) => quote(s),
+        Value::Bytes(_) => "{}".to_string(),
+        Value::Array(items) => {
+            let inner: Vec<String> = items.iter().map(json_stringify).collect();
+            format!("[{}]", inner.join(","))
+        }
+        Value::Map(entries) => {
+            let inner: Vec<String> = entries
+                .iter()
+                .map(|(key, value)| format!("{}:{}", quote(key), json_stringify(value)))
+                .collect();
+            format!("{{{}}}", inner.join(","))
+        }
+    }
+}
