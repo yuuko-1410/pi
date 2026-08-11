@@ -93,8 +93,19 @@ pub struct AgentLoopTurnUpdate {
 /// Thinking/reasoning level for models that support it.
 pub type ThinkingLevel = String;
 
+/// Downcast helper for `CustomAgentMessage` trait objects.
+pub trait AsAny {
+    fn as_any(&self) -> &dyn std::any::Any;
+}
+
+impl<T: std::any::Any> AsAny for T {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
 /// Extensible marker for custom app messages; apps implement this trait.
-pub trait CustomAgentMessage: std::fmt::Debug + Send + Sync {}
+pub trait CustomAgentMessage: std::fmt::Debug + Send + Sync + AsAny {}
 
 /// AgentMessage: LLM messages plus custom app messages. Custom messages are
 /// compared by identity (Arc pointer), matching JS object identity.
@@ -132,6 +143,15 @@ impl AgentMessage {
                 Message::ToolResult(_) => "toolResult",
             },
             AgentMessage::Custom(_) => "custom",
+        }
+    }
+}
+
+impl AgentMessage {
+    pub fn as_assistant(&self) -> Option<&pi_ai::types::AssistantMessage> {
+        match self {
+            AgentMessage::Llm(Message::Assistant(assistant)) => Some(assistant),
+            _ => None,
         }
     }
 }
