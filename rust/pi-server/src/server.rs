@@ -297,6 +297,7 @@ impl PiServer {
     }
 
     fn dispatch_message(&self, state: &ConnectionState, message: &ClientMessage) {
+        eprintln!("DBG dispatch {:?} stage {}", message, state.stage.lock().unwrap());
         if state.stage.lock().unwrap().as_str() == "awaitingHello" {
             let ClientMessage::Hello { .. } = message else {
                 self.fail_protocol(state, ProtocolError {

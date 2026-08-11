@@ -44,13 +44,18 @@ impl ServerSnapshotPublisher {
     }
 
     pub fn get(&self) -> ServerSnapshot {
-        ServerSnapshot {
-            server_id: self.options.lock().unwrap().server_id.clone(),
+        // Clone the options out of the lock first: the list_sessions closure
+        // re-enters the session manager, and holding this lock across the
+        // call would risk lock-order inversion.
+        let opts = self.options.lock().unwrap().clone();
+        let snapshot = ServerSnapshot {
+            server_id: opts.server_id.clone(),
             protocol_version: PROTOCOL_VERSION,
             revision: self.current_revision(),
-            sessions: (self.options.lock().unwrap().list_sessions)(),
-            models: self.options.lock().unwrap().service.list_models(),
-        }
+            sessions: (opts.list_sessions)(),
+            models: opts.service.list_models(),
+        };
+        snapshot
     }
 
     pub fn broadcast(&self) {
