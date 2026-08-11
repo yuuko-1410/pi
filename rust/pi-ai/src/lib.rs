@@ -9,6 +9,7 @@
 //! The provider/API layer (`src/api/*`, `src/providers/*`, `src/auth/*`),
 //! model catalogs, and the remaining utils follow in later ports.
 
+pub mod api;
 pub mod event_stream;
 pub mod types;
 pub mod utils;
