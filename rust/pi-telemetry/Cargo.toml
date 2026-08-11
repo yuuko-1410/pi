@@ -1,0 +1,9 @@
+[package]
+name = "pi-telemetry"
+version = "0.84.1"
+edition = "2024"
+rust-version = "1.97"
+description = "Vendor-neutral telemetry contracts and typed schema utilities for pi (Rust port of @earendil-works/pi-telemetry)"
+license = "MIT"
+
+[dependencies]

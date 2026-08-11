@@ -1,0 +1,3 @@
+[workspace]
+members = ["pi-protocol", "pi-telemetry"]
+resolver = "2"
