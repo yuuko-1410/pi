@@ -229,6 +229,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pi-client"
+version = "0.84.1"
+dependencies = [
+ "pi-protocol",
+]
+
+[[package]]
 name = "pi-protocol"
 version = "0.84.1"
 

@@ -1,0 +1,7 @@
+[package]
+name = "pi-client"
+version = "0.84.1"
+edition = "2021"
+
+[dependencies]
+pi-protocol = { path = "../pi-protocol" }
