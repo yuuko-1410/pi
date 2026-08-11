@@ -25,8 +25,18 @@ struct StreamState<T, R> {
 
 pub struct EventStream<T, R> {
     state: Arc<(Mutex<StreamState<T, R>>, Condvar)>,
-    is_complete: Box<dyn Fn(&T) -> bool>,
-    extract_result: Box<dyn Fn(&T) -> R>,
+    is_complete: Arc<dyn Fn(&T) -> bool + Send + Sync>,
+    extract_result: Arc<dyn Fn(&T) -> R + Send + Sync>,
+}
+
+impl<T, R> Clone for EventStream<T, R> {
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            is_complete: self.is_complete.clone(),
+            extract_result: self.extract_result.clone(),
+        }
+    }
 }
 
 impl<T, R> EventStream<T, R>
@@ -34,8 +44,8 @@ where
     R: Clone,
 {
     pub fn new(
-        is_complete: impl Fn(&T) -> bool + 'static,
-        extract_result: impl Fn(&T) -> R + 'static,
+        is_complete: impl Fn(&T) -> bool + Send + Sync + 'static,
+        extract_result: impl Fn(&T) -> R + Send + Sync + 'static,
     ) -> Self {
         Self {
             state: Arc::new((
@@ -47,8 +57,8 @@ where
                 }),
                 Condvar::new(),
             )),
-            is_complete: Box::new(is_complete),
-            extract_result: Box::new(extract_result),
+            is_complete: Arc::new(is_complete),
+            extract_result: Arc::new(extract_result),
         }
     }
 
@@ -161,6 +171,14 @@ impl AssistantMessageEventStream {
 impl Default for AssistantMessageEventStream {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Clone for AssistantMessageEventStream {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
     }
 }
 

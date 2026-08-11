@@ -4,6 +4,8 @@
 //! adapters) follows; these modules are pure conversions used by it.
 
 pub mod constrained_sampling;
+pub mod github_copilot_headers;
+pub mod openai_responses;
 pub mod openai_stream;
 pub mod openai_responses_shared;
 pub mod prompt_cache;

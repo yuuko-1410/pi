@@ -8,6 +8,7 @@ pub mod estimate;
 pub mod hash;
 pub mod headers;
 pub mod overflow;
+pub mod provider_env;
 pub mod json;
 pub mod sanitize;
 pub mod provider_retry;

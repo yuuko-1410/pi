@@ -10,3 +10,4 @@ license = "MIT"
 pi-protocol = { path = "../pi-protocol" }
 pi-telemetry = { path = "../pi-telemetry" }
 regex = "1"
+ureq = { version = "2", default-features = false, features = ["tls"] }
