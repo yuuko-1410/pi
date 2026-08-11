@@ -210,6 +210,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
+name = "pi-agent-core"
+version = "0.84.1"
+dependencies = [
+ "pi-ai",
+ "pi-telemetry",
+]
+
+[[package]]
 name = "pi-ai"
 version = "0.84.1"
 dependencies = [

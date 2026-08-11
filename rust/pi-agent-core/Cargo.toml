@@ -1,0 +1,11 @@
+[package]
+name = "pi-agent-core"
+version = "0.84.1"
+edition = "2024"
+rust-version = "1.97"
+description = "Agent loop and session types for pi (Rust port of @earendil-works/pi-agent-core)"
+license = "MIT"
+
+[dependencies]
+pi-ai = { path = "../pi-ai" }
+pi-telemetry = { path = "../pi-telemetry" }
