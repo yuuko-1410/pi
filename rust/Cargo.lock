@@ -214,6 +214,7 @@ name = "pi-agent-core"
 version = "0.84.1"
 dependencies = [
  "pi-ai",
+ "pi-protocol",
  "pi-telemetry",
 ]
 
