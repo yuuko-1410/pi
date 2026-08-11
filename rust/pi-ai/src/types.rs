@@ -6,7 +6,7 @@
 //! `Vec<(String, X)>` preserving insertion order. JSON-valued fields reuse
 //! `pi_protocol::Value` (a strict JSON value tree).
 
-use pi_protocol::Value as JsonValue;
+pub use pi_protocol::Value as JsonValue;
 
 pub const KNOWN_APIS: &[&str] = &[
     "openai-completions",
@@ -429,12 +429,31 @@ pub enum ConstrainedSamplingConfig {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct JsonSchemaObject {
     pub type_: Option<Vec<String>>,
+    pub description: Option<String>,
     pub properties: Option<Vec<(String, JsonSchemaObject)>>,
+    pub required: Option<Vec<String>>,
     pub items: Option<Box<JsonSchemaValue>>,
     pub additional_properties: Option<JsonSchemaAdditional>,
     pub all_of: Option<Vec<JsonSchemaObject>>,
     pub any_of: Option<Vec<JsonSchemaObject>>,
     pub one_of: Option<Vec<JsonSchemaObject>>,
+    pub enum_values: Option<Vec<JsonValue>>,
+    pub default: Option<JsonValue>,
+    pub const_value: Option<JsonValue>,
+    pub minimum: Option<f64>,
+    pub maximum: Option<f64>,
+    pub exclusive_minimum: Option<f64>,
+    pub exclusive_maximum: Option<f64>,
+    pub min_length: Option<f64>,
+    pub max_length: Option<f64>,
+    pub pattern: Option<String>,
+    pub min_items: Option<f64>,
+    pub max_items: Option<f64>,
+    pub unique_items: Option<bool>,
+    pub min_properties: Option<f64>,
+    pub max_properties: Option<f64>,
+    pub not: Option<Box<JsonSchemaObject>>,
+    pub nullable: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

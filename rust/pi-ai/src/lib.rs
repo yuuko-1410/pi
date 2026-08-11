@@ -4,12 +4,14 @@
 //! - `types`: model/message/stream types (port of `src/types.ts`)
 //! - `event_stream`: the assistant message event stream (port of
 //!   `src/utils/event-stream.ts`)
+//! - `utils`: pure utilities (ports of `src/utils/*`)
 //!
 //! The provider/API layer (`src/api/*`, `src/providers/*`, `src/auth/*`),
 //! model catalogs, and the remaining utils follow in later ports.
 
 pub mod event_stream;
 pub mod types;
+pub mod utils;
 
 pub use event_stream::{
     create_assistant_message_event_stream, AssistantMessageEventStream, EventStream,
