@@ -9,7 +9,7 @@
 use pi_protocol::Value;
 
 use crate::api::google_shared::{
-    convert_messages, convert_tools, is_thinking_part, map_stop_reason, resolve_google_function_calling_mode,
+    convert_messages, convert_tools, map_stop_reason, resolve_google_function_calling_mode,
     retain_thought_signature, supports_google_strict_tool_sampling,
 };
 use crate::api::simple_options::build_base_options;

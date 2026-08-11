@@ -1,6 +1,7 @@
 //! API-layer helpers. TEMPORARY: parallel-agent modules disabled for
 //! isolated verification; restored after validation.
 
+pub mod anthropic_messages;
 pub mod azure_openai_responses;
 pub mod constrained_sampling;
 pub mod github_copilot_headers;
@@ -9,6 +10,7 @@ pub mod google_shared;
 pub mod google_vertex;
 pub mod openai_responses;
 pub mod openai_codex_responses;
+pub mod openai_completions;
 pub mod mistral_conversations;
 pub mod openai_stream;
 pub mod openai_responses_shared;

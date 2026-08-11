@@ -137,7 +137,7 @@ fn converts_thinking_blocks_to_thought_parts() {
 #[test]
 fn cross_model_thinking_becomes_plain_text() {
     let m = model("gemini-2.5-pro", "google", "google-generative-ai");
-    let context = Context {
+    let _context = Context {
         system_prompt: None,
         messages: vec![assistant(vec![Content::Thinking(ThinkingContent {
             thinking: "hmm".to_string(),
