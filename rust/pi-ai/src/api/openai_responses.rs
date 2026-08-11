@@ -504,6 +504,7 @@ pub fn stream(
                 Some(&StreamProcessOptions {
                     service_tier: options.as_ref().and_then(|o| o.service_tier.clone()),
                     grammar_tool_input_properties: Some(grammar_tool_input_properties),
+                    apply_service_tier_pricing: None,
                 }),
             )?;
 

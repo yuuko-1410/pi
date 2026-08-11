@@ -2,7 +2,7 @@
 //! `packages/ai/src/models.ts` (the full registry/catalog follows with the
 //! providers layer).
 
-use crate::types::{Model, ModelCostRates, Usage};
+use crate::types::{Model, Usage};
 
 pub const EXTENDED_THINKING_LEVELS: [&str; 7] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 

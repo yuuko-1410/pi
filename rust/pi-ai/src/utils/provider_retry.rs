@@ -75,7 +75,7 @@ fn validate_server_retry_delay_ms(
 
 /// Parses an IMF-fixdate HTTP date (`"Wed, 21 Oct 2015 07:28:00 GMT"`) as
 /// milliseconds since the Unix epoch; `None` when unparseable.
-fn parse_http_date(value: &str) -> Option<f64> {
+pub(crate) fn parse_http_date(value: &str) -> Option<f64> {
     // "Wed, 21 Oct 2015 07:28:00 GMT"
     let parts: Vec<&str> = value.split_whitespace().collect();
     if parts.len() != 6 || !parts[5].eq_ignore_ascii_case("gmt") {

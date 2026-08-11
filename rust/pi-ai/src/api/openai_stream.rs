@@ -362,10 +362,14 @@ enum ResponsesOutputSlot {
     ToolCall { content_index: usize, scratch: ToolCallScratch },
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Default)]
 pub struct OpenAIResponsesStreamOptions {
     pub service_tier: Option<String>,
     pub grammar_tool_input_properties: Option<Vec<(String, String)>>,
+    /// Optional service-tier pricing hook, called after the final usage is
+    /// computed with the resolved service tier (response tier, request tier).
+    pub apply_service_tier_pricing:
+        Option<Box<dyn Fn(&mut crate::types::Usage, Option<&str>, Option<&str>) + Send + Sync>>,
 }
 
 fn map_stop_reason(status: Option<&str>, incomplete_reason: Option<&str>) -> (StopReason, Option<String>) {
@@ -424,6 +428,8 @@ fn finalize_response(
     output: &mut AssistantMessage,
     saw_terminal_response_event: &mut bool,
     reasoning_blocks_by_id: &mut std::collections::HashMap<String, ThinkingContent>,
+    model: &Model,
+    options: Option<&OpenAIResponsesStreamOptions>,
     response: &ResponseObject,
 ) {
     *saw_terminal_response_event = true;
@@ -477,8 +483,16 @@ fn finalize_response(
             },
         };
     }
-    // calculateCost(model, usage) is ported with the models layer; costs
-    // remain zero until then.
+    // calculateCost(model, usage) mirrors the JS models layer.
+    crate::models::calculate_cost(model, &mut output.usage);
+
+    if let Some(apply) = &options.and_then(|o| o.apply_service_tier_pricing.as_ref()) {
+        apply(
+            &mut output.usage,
+            response.service_tier.as_deref(),
+            options.and_then(|o| o.service_tier.as_deref()),
+        );
+    }
 
     // Map status to stop reason.
     let status = response.status.clone();
@@ -505,7 +519,7 @@ pub fn process_responses_stream<I>(
     events: I,
     output: &mut AssistantMessage,
     stream: &AssistantMessageEventStream,
-    _model: &Model,
+    model: &Model,
     options: Option<&OpenAIResponsesStreamOptions>,
 ) -> Result<(), String>
 where
@@ -889,6 +903,8 @@ where
                     output,
                     &mut saw_terminal_response_event,
                     &mut reasoning_blocks_by_id,
+                    model,
+                    options,
                     &response,
                 );
             }
@@ -897,6 +913,8 @@ where
                     output,
                     &mut saw_terminal_response_event,
                     &mut reasoning_blocks_by_id,
+                    model,
+                    options,
                     &response,
                 );
             }
