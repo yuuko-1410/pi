@@ -52,13 +52,46 @@ pub trait PiServerService: Send + Sync {
 }
 
 /// Connection state shared with the server (subset used by the manager).
-#[derive(Clone, Debug)]
 pub struct SessionConnection {
     pub id: String,
-    pub disconnected: bool,
-    pub stage: String,
-    pub closed: bool,
+    pub disconnected: std::sync::atomic::AtomicBool,
+    pub stage: Mutex<String>,
+    pub closed: std::sync::atomic::AtomicBool,
     pub session_ids: Arc<Mutex<Vec<String>>>,
+    /// Server-side message decoder; set by PiServer on accept.
+    pub decoder: Option<Arc<Mutex<Option<pi_protocol::codec::ValidatedMessageDecoder<pi_protocol::schemas::ClientMessage>>>>>,
+    /// Byte transport; set by PiServer on accept.
+    pub transport: Option<Arc<dyn ByteConnection>>,
+    pub handshake_complete: std::sync::atomic::AtomicBool,
+}
+
+impl Clone for SessionConnection {
+    fn clone(&self) -> Self {
+        SessionConnection {
+            id: self.id.clone(),
+            disconnected: std::sync::atomic::AtomicBool::new(self.disconnected.load(std::sync::atomic::Ordering::SeqCst)),
+            stage: Mutex::new(self.stage.lock().unwrap().clone()),
+            closed: std::sync::atomic::AtomicBool::new(self.closed.load(std::sync::atomic::Ordering::SeqCst)),
+            session_ids: self.session_ids.clone(),
+            decoder: self.decoder.clone(),
+            transport: self.transport.clone(),
+            handshake_complete: std::sync::atomic::AtomicBool::new(
+                self.handshake_complete.load(std::sync::atomic::Ordering::SeqCst),
+            ),
+        }
+    }
+}
+
+impl std::fmt::Debug for SessionConnection {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SessionConnection")
+            .field("id", &self.id)
+            .field("disconnected", &self.disconnected)
+            .field("stage", &self.stage)
+            .field("closed", &self.closed)
+            .finish_non_exhaustive()
+    }
 }
 
 impl PartialEq for SessionConnection {
@@ -74,6 +107,13 @@ impl std::hash::Hash for SessionConnection {
 }
 
 pub type ConnectionState = Arc<SessionConnection>;
+
+/// An established, authorized ordered byte connection (server side).
+pub trait ByteConnection: Send + Sync {
+    fn closed(&self) -> bool;
+    fn send(&self, chunk: &[u8]) -> Result<(), String>;
+    fn close(&self, final_chunk: Option<Vec<u8>>);
+}
 
 pub struct LiveSessionManagerOptions {
     pub service: Arc<dyn PiServerService>,
@@ -108,16 +148,26 @@ fn to_metadata(snapshot: &SessionSnapshot) -> SessionMetadata {
 }
 
 pub struct LiveSessionManager {
-    options: Arc<LiveSessionManagerOptions>,
+    options: Mutex<Arc<LiveSessionManagerOptions>>,
     live_sessions: Mutex<HashMap<String, LiveSession>>,
 }
 
 impl LiveSessionManager {
     pub fn new(options: LiveSessionManagerOptions) -> Self {
         Self {
-            options: Arc::new(options),
+            options: Mutex::new(Arc::new(options)),
             live_sessions: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Swap the callbacks (used by PiServer to wire self-referential
+    /// closures after construction).
+    pub fn set_options(&self, options: LiveSessionManagerOptions) {
+        *self.options.lock().unwrap() = Arc::new(options);
+    }
+
+    pub fn options(&self) -> Arc<LiveSessionManagerOptions> {
+        self.options.lock().unwrap().clone()
     }
 
     pub fn execute_command(self: &Arc<Self>, connection: &ConnectionState, command: &Command) -> Result<CommandResult, PiServerError> {
@@ -139,17 +189,17 @@ impl LiveSessionManager {
                     model: model.clone(),
                     thinking_level: thinking_level.clone(),
                 };
-                let live = self.acquire(&id, || self.options.service.create_session(&options))?;
+                let live = self.acquire(&id, || self.options.lock().unwrap().service.create_session(&options))?;
                 self.attach(connection, &live)?;
                 let snapshot = self.for_connection(&self.broadcast_snapshot(&live)?, connection);
-                (self.options.broadcast_server_snapshot)();
+                (self.options.lock().unwrap().broadcast_server_snapshot)();
                 Ok(CommandResult::Create { session: snapshot })
             }
             Command::Attach { session_id } => {
-                let live = self.acquire(session_id, || self.options.service.open_session(session_id))?;
+                let live = self.acquire(session_id, || self.options.lock().unwrap().service.open_session(session_id))?;
                 self.attach(connection, &live)?;
                 let snapshot = self.for_connection(&self.broadcast_snapshot(&live)?, connection);
-                (self.options.broadcast_server_snapshot)();
+                (self.options.lock().unwrap().broadcast_server_snapshot)();
                 Ok(CommandResult::Attach { session: snapshot })
             }
             Command::Detach { session_id } => {
@@ -175,7 +225,7 @@ impl LiveSessionManager {
                         }
                         self.maybe_dispose(&live)?;
                     }
-                    (self.options.broadcast_server_snapshot)();
+                    (self.options.lock().unwrap().broadcast_server_snapshot)();
                 }
                 Ok(CommandResult::Detach {
                     session_id: session_id.clone(),
@@ -227,13 +277,13 @@ impl LiveSessionManager {
         }
         for live in sessions {
             if let Err(error) = self.maybe_dispose(&live) {
-                (self.options.report_error)(&error);
+                (self.options.lock().unwrap().report_error)(&error);
             }
         }
     }
 
     pub fn list_metadata(&self) -> Vec<SessionMetadata> {
-        let stored = self.options.service.list_sessions();
+        let stored = self.options.lock().unwrap().service.list_sessions();
         let mut live_snapshots: Vec<(String, SessionSnapshot)> = Vec::new();
         let guard = self.live_sessions.lock().unwrap();
         for live in guard.values() {
@@ -275,7 +325,7 @@ impl LiveSessionManager {
                 continue;
             }
             if let Err(error) = live.runtime.dispose() {
-                (self.options.report_error)(&error);
+                (self.options.lock().unwrap().report_error)(&error);
             }
         }
     }
@@ -300,7 +350,7 @@ impl LiveSessionManager {
         };
         if count == 0 {
             if let Err(error) = self.maybe_dispose(live) {
-                (self.options.report_error)(&error);
+                (self.options.lock().unwrap().report_error)(&error);
             }
         }
         result
@@ -342,7 +392,7 @@ impl LiveSessionManager {
         acquire_runtime: impl FnOnce() -> Result<Arc<dyn SessionRuntime>, PiServerError>,
     ) -> Result<LiveSession, PiServerError> {
         let runtime = acquire_runtime()?;
-        if (self.options.is_closing)() {
+        if (self.options.lock().unwrap().is_closing)() {
             let _ = runtime.dispose();
             return Err(PiServerError::new(
                 "invalid_request",
@@ -392,7 +442,7 @@ impl LiveSessionManager {
                 let error = error.clone();
                 match self.terminate(&live, &error) {
                     Ok(()) => {}
-                    Err(error) => (self.options.report_error)(&error),
+                    Err(error) => (self.options.lock().unwrap().report_error)(&error),
                 }
                 return;
             }
@@ -405,12 +455,12 @@ impl LiveSessionManager {
                 };
                 let connections: Vec<ConnectionState> = live.connections.iter().cloned().collect();
                 for connection in connections {
-                    (self.options.send_message)(&connection, &envelope);
+                    (self.options.lock().unwrap().send_message)(&connection, &envelope);
                 }
             }
             SessionRuntimeEvent::Snapshot => {
                 if let Err(error) = self.broadcast_snapshot(&live) {
-                    (self.options.report_error)(&error);
+                    (self.options.lock().unwrap().report_error)(&error);
                 }
             }
         }
@@ -428,13 +478,13 @@ impl LiveSessionManager {
             }
             current.terminal = true;
         }
-        (self.options.report_error)(error);
+        (self.options.lock().unwrap().report_error)(error);
         let connections: Vec<ConnectionState> = live.connections.iter().cloned().collect();
         for connection in &connections {
-            (self.options.close_connection)(connection);
+            (self.options.lock().unwrap().close_connection)(connection);
         }
         for connection in &connections {
-            (self.options.disconnect_connection)(connection);
+            (self.options.lock().unwrap().disconnect_connection)(connection);
         }
         self.maybe_dispose(live)
     }
@@ -469,13 +519,13 @@ impl LiveSessionManager {
         };
         let connections: Vec<ConnectionState> = live.connections.iter().cloned().collect();
         for connection in connections {
-            (self.options.send_message)(&connection, &envelope);
+            (self.options.lock().unwrap().send_message)(&connection, &envelope);
         }
         Ok(snapshot)
     }
 
     fn attach(&self, connection: &ConnectionState, live: &LiveSession) -> Result<(), PiServerError> {
-        if connection.disconnected || connection.stage != "ready" || connection.closed {
+        if connection.disconnected.load(std::sync::atomic::Ordering::SeqCst) || connection.stage.lock().unwrap().as_str() != "ready" || connection.closed.load(std::sync::atomic::Ordering::SeqCst) {
             self.maybe_dispose(live).ok();
             return Err(PiServerError::new(
                 "invalid_request",
@@ -515,7 +565,7 @@ impl LiveSessionManager {
 
     fn schedule_maybe_dispose(&self, live: &LiveSession) {
         if let Err(error) = self.maybe_dispose(live) {
-            (self.options.report_error)(&error);
+            (self.options.lock().unwrap().report_error)(&error);
         }
     }
 
@@ -525,7 +575,7 @@ impl LiveSessionManager {
             let Some(current) = guard.get(&live.id) else {
                 return Ok(());
             };
-            if (self.options.is_closing)()
+            if (self.options.lock().unwrap().is_closing)()
                 || !current.ready
                 || current.disposing
                 || current.connections.len() > 0
@@ -541,8 +591,8 @@ impl LiveSessionManager {
         }
         let result = live.runtime.dispose();
         self.live_sessions.lock().unwrap().remove(&live.id);
-        if !(self.options.is_closing)() {
-            (self.options.broadcast_server_snapshot)();
+        if !(self.options.lock().unwrap().is_closing)() {
+            (self.options.lock().unwrap().broadcast_server_snapshot)();
         }
         result
     }

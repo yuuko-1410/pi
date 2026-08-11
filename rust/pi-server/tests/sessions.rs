@@ -129,10 +129,13 @@ impl PiServerService for MemService {
 fn new_connection(id: &str) -> ConnectionState {
     Arc::new(SessionConnection {
         id: id.to_string(),
-        disconnected: false,
-        stage: "ready".to_string(),
-        closed: false,
+        disconnected: std::sync::atomic::AtomicBool::new(false),
+        stage: Mutex::new("ready".to_string()),
+        closed: std::sync::atomic::AtomicBool::new(false),
         session_ids: Arc::new(Mutex::new(Vec::new())),
+        decoder: None,
+        transport: None,
+        handshake_complete: std::sync::atomic::AtomicBool::new(false),
     })
 }
 

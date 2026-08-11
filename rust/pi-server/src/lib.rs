@@ -2,4 +2,6 @@
 
 pub mod errors;
 pub mod protocol;
+pub mod snapshots;
+pub mod server;
 pub mod sessions;
