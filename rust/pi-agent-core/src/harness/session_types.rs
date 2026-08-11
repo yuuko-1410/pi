@@ -475,6 +475,19 @@ impl Entry {
         }
     }
 
+    pub fn set_timestamp(&mut self, timestamp: f64) {
+        let base = match self {
+            Entry::Message(entry) => &mut entry.base,
+            Entry::ModelChange(entry) => &mut entry.base,
+            Entry::ThinkingLevelChange(entry) => &mut entry.base,
+            Entry::ActiveToolsChange(entry) => &mut entry.base,
+            Entry::Compaction(entry) => &mut entry.base,
+            Entry::BranchSummary(entry) => &mut entry.base,
+            Entry::Custom(entry) => &mut entry.base,
+        };
+        base.timestamp = timestamp;
+    }
+
     pub fn set_seq(&mut self, seq: f64) {
         let base = match self {
             Entry::Message(entry) => &mut entry.base,

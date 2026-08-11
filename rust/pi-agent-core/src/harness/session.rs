@@ -337,7 +337,10 @@ impl SessionStorage for InMemorySessionStorage {
         let mut state = self.state.lock().unwrap();
         let parent_id = state.require_lane(lane)?;
         state.validate_unused_id(entry.id())?;
+        // Storage-assigned fields, mirroring the JS append path.
         entry.set_parent_id(parent_id);
+        entry.set_seq(state.next_sequence());
+        entry.set_timestamp(now_ms());
         state.apply_mutation(crate::harness::session_state::MutKind::Entry {
             lane: Some(lane.to_string()),
             entry: entry.clone(),
