@@ -150,8 +150,20 @@ pub struct AgentTool {
     /// Human-readable label for UI display.
     pub label: String,
     /// Execute the tool call. Errors are returned as `Err` (the loop encodes
-    /// them into error tool results).
-    pub execute: Option<std::sync::Arc<dyn Fn(&str, &pi_ai::types::JsonValue, Option<&AgentToolUpdate>) -> Result<AgentToolResult, String> + Send + Sync>>,
+    /// them into error tool results). The update callback streams partial
+    /// results; the token is the agent abort signal.
+    pub execute: Option<
+        std::sync::Arc<
+            dyn Fn(
+                    &str,
+                    &pi_ai::types::JsonValue,
+                    Option<&pi_ai::utils::abort::CancellationToken>,
+                    Option<&dyn Fn(&AgentToolResult)>,
+                ) -> Result<AgentToolResult, String>
+                + Send
+                + Sync,
+        >,
+    >,
     /// Per-tool execution mode override.
     pub execution_mode: Option<ToolExecutionMode>,
 }
