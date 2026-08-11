@@ -240,6 +240,14 @@ name = "pi-protocol"
 version = "0.84.1"
 
 [[package]]
+name = "pi-server"
+version = "0.84.1"
+dependencies = [
+ "pi-ai",
+ "pi-protocol",
+]
+
+[[package]]
 name = "pi-telemetry"
 version = "0.84.1"
 
