@@ -4,6 +4,7 @@
 pub mod agent_harness;
 pub mod compaction;
 pub mod env;
+pub mod events;
 pub mod context;
 pub mod messages;
 pub mod reducer;
