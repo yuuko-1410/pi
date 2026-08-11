@@ -1,6 +1,7 @@
 //! Harness types (session persistence models first; the harness runtime
 //! follows).
 
+pub mod agent_harness;
 pub mod reducer;
 pub mod session;
 pub mod session_state;
