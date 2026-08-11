@@ -1603,7 +1603,6 @@ struct StreamingToolCallBlock {
     tool_call: ToolCall,
     partial_args: Option<String>,
     custom_input: Option<CustomInputState>,
-    stream_index: Option<f64>,
 }
 
 #[derive(Clone)]
@@ -1891,7 +1890,6 @@ pub fn stream(
                                 tool_call: tool_call.clone(),
                                 partial_args: None,
                                 custom_input: None,
-                                stream_index: None,
                             }),
                         }
                     }
@@ -2261,7 +2259,6 @@ fn ensure_tool_call_block(
                     property,
                     json_buffer: GrammarToolInputJsonBuffer::default(),
                 }),
-                stream_index,
             };
             output.content.push(Content::ToolCall(block.tool_call.clone()));
             let content_index = (output.content.len() - 1) as f64;

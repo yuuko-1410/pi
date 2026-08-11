@@ -10,7 +10,9 @@
 //! model catalogs, and the remaining utils follow in later ports.
 
 pub mod api;
+pub mod auth;
 pub mod event_stream;
+pub mod model_catalog;
 pub mod models;
 pub mod http;
 pub mod types;

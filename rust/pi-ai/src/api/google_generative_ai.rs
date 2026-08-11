@@ -174,7 +174,6 @@ fn get_disabled_thinking_config(model: &Model) -> GoogleThinkingConfig {
     }
 }
 
-type ClampedThinkingLevel = &'static str;
 
 fn get_thinking_level(effort: &str, model: &Model) -> String {
     if is_gemini3_pro_model(model) {
