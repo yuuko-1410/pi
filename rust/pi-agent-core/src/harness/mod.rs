@@ -4,5 +4,6 @@
 pub mod agent_harness;
 pub mod reducer;
 pub mod session;
+pub mod truncate;
 pub mod session_state;
 pub mod session_types;
