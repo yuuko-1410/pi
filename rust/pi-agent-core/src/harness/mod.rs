@@ -8,5 +8,6 @@ pub mod messages;
 pub mod reducer;
 pub mod session;
 pub mod truncate;
+pub mod telemetry;
 pub mod session_state;
 pub mod session_types;
