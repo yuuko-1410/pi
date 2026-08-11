@@ -20,7 +20,7 @@ use crate::types::{
     ShouldStopAfterTurnContext, ToolExecutionMode,
 };
 
-pub type AgentEventSink = dyn Fn(&AgentEvent) + Send + Sync;
+pub type AgentEventSink<'a> = dyn Fn(&AgentEvent) + Send + Sync + 'a;
 
 /// Stream function used by the loop (satisfied by `Models.streamSimple`).
 pub type LoopStreamFn = dyn Fn(
@@ -118,7 +118,7 @@ pub fn run_agent_loop(
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
     stream_fn: &LoopStreamFn,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> Vec<AgentMessage> {
     let mut new_messages: Vec<AgentMessage> = prompts.clone();
     let mut current_context = AgentContext {
@@ -154,7 +154,7 @@ pub fn run_agent_loop_continue(
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
     stream_fn: &LoopStreamFn,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> Vec<AgentMessage> {
     let mut new_messages: Vec<AgentMessage> = Vec::new();
     let mut current_context = context;
@@ -179,7 +179,7 @@ fn run_loop(
     new_messages: &mut Vec<AgentMessage>,
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
     stream_fn: &LoopStreamFn,
 ) {
     let mut first_turn = true;
@@ -337,7 +337,7 @@ fn stream_assistant_response(
     context: &mut AgentContext,
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
     stream_fn: &LoopStreamFn,
 ) -> AssistantMessage {
     let _ = signal;
@@ -433,7 +433,7 @@ fn finalize_streamed_message(
     context: &mut AgentContext,
     final_message: AssistantMessage,
     added_partial: bool,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> AssistantMessage {
     if added_partial {
         context.messages.last_mut().expect("partial pushed").clone_from(&AgentMessage::Llm(Message::Assistant(final_message.clone())));
@@ -457,7 +457,7 @@ struct ExecutedToolCallBatch {
 /// Fail all tool calls from a message truncated by the output token limit.
 fn fail_tool_calls_from_truncated_message(
     tool_calls: &[AgentToolCall],
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> ExecutedToolCallBatch {
     let mut messages: Vec<ToolResultMessage> = Vec::new();
     for tool_call in tool_calls {
@@ -491,7 +491,7 @@ fn execute_tool_calls(
     assistant_message: &AssistantMessage,
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> ExecutedToolCallBatch {
     let tool_calls: Vec<AgentToolCall> = assistant_message
         .content
@@ -521,7 +521,7 @@ fn execute_tool_calls_sequential(
     tool_calls: &[AgentToolCall],
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> ExecutedToolCallBatch {
     let mut finalized_calls: Vec<FinalizedToolCallOutcome> = Vec::new();
     let mut messages: Vec<ToolResultMessage> = Vec::new();
@@ -573,7 +573,7 @@ fn execute_tool_calls_parallel(
     tool_calls: &[AgentToolCall],
     config: &AgentLoopConfig,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> ExecutedToolCallBatch {
     let mut finalized_entries: Vec<FinalizedToolCallEntry> = Vec::new();
 
@@ -765,7 +765,7 @@ struct ExecutedToolCallOutcome {
 fn execute_prepared_tool_call(
     prepared: &PreparedToolCall,
     signal: Option<&pi_ai::utils::abort::CancellationToken>,
-    emit: &AgentEventSink,
+    emit: &AgentEventSink<'_>,
 ) -> ExecutedToolCallOutcome {
     let PreparedToolCall::Prepared {
         tool_call,
