@@ -1,0 +1,11 @@
+[package]
+name = "pi-protocol"
+version = "0.84.1"
+edition = "2024"
+rust-version = "1.97"
+description = "Transport-neutral CBOR protocol for remote pi sessions (Rust port of @earendil-works/pi-protocol)"
+license = "MIT"
+
+[dependencies]
+
+[dev-dependencies]
