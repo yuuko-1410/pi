@@ -9,3 +9,4 @@ license = "MIT"
 [dependencies]
 pi-protocol = { path = "../pi-protocol" }
 pi-telemetry = { path = "../pi-telemetry" }
+regex = "1"
