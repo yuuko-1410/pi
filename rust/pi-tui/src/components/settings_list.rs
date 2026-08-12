@@ -66,7 +66,9 @@ pub struct SettingsList {
     submenu_component: Option<Arc<dyn Fn(usize) -> Vec<String> + Send + Sync>>,
     submenu_item_index: Option<usize>,
     submenu_done: Option<Arc<AtomicBool>>,
+    #[allow(non_snake_case)]
     pub onChange: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
+    #[allow(non_snake_case)]
     pub onCancel: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
