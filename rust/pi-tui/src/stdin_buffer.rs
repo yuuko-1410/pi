@@ -5,8 +5,6 @@
 //! by callbacks; the flush timeout is a caller responsibility (process
 //! returns buffered remainder via `buffer`).
 
-use std::sync::{Arc, Mutex};
-
 const ESC: &str = "\x1b";
 const BRACKETED_PASTE_START: &str = "\x1b[200~";
 const BRACKETED_PASTE_END: &str = "\x1b[201~";
@@ -211,17 +209,15 @@ impl Default for StdinBufferOptions {
 /// Buffers stdin input and emits complete sequences.
 pub struct StdinBuffer {
     buffer: String,
-    timeout_ms: f64,
     paste_mode: bool,
     paste_buffer: String,
     pending_kitty_printable_codepoint: Option<u32>,
 }
 
 impl StdinBuffer {
-    pub fn new(options: StdinBufferOptions) -> Self {
+    pub fn new(_options: StdinBufferOptions) -> Self {
         Self {
             buffer: String::new(),
-            timeout_ms: options.timeout.unwrap_or(10.0),
             paste_mode: false,
             paste_buffer: String::new(),
             pending_kitty_printable_codepoint: None,
