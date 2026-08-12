@@ -236,6 +236,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pi-evals"
+version = "0.84.1"
+
+[[package]]
 name = "pi-protocol"
 version = "0.84.1"
 
@@ -249,6 +253,10 @@ dependencies = [
 
 [[package]]
 name = "pi-telemetry"
+version = "0.84.1"
+
+[[package]]
+name = "pi-tui"
 version = "0.84.1"
 
 [[package]]
