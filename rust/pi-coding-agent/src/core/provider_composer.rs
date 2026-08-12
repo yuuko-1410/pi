@@ -543,7 +543,7 @@ pub fn compose_provider_models(
                     .cloned();
                 let mut model = definition.clone();
                 let mut entries = model.as_map().unwrap_or_default().to_vec();
-                if let Some(slot) = entries.iter_mut().find(|(k, _)| k == "api") {
+                if entries.iter().any(|(k, _)| k == "api") {
                     // keep extension api
                 } else if let Some(defaults) = &defaults {
                     if let Some(default_api) = defaults.as_map().and_then(|entries| {
