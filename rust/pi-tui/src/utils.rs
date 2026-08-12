@@ -1018,9 +1018,9 @@ fn wrap_single_line(line: &str, width: f64) -> Vec<String> {
         if token_width > width && !is_whitespace {
             if !current_line.is_empty() {
                 wrapped.push(current_line.trim_end().to_string());
-                current_line = String::new();
-                current_width = 0.0;
             }
+            current_line.clear();
+            current_width = 0.0;
             // Break the long token by graphemes.
             let mut fragment = String::new();
             let mut fragment_width = 0.0;
