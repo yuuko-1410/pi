@@ -3,6 +3,7 @@
 pub mod fuzzy;
 pub mod keybindings;
 pub mod keys;
+pub mod layout;
 pub mod components;
 pub mod layout_node;
 pub mod tui;

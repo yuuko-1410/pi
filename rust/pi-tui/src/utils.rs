@@ -814,6 +814,48 @@ pub fn strip_terminal_sequences(str: &str) -> String {
     result
 }
 
+/// Return the terminal-cell range occupied by the grapheme at a visible
+/// column (port of getGraphemeCellRange).
+pub fn get_grapheme_cell_range(line: &str, column: f64) -> Option<(f64, f64)> {
+    let mut current_col = 0.0;
+    let mut i = 0;
+    let bytes = line.as_bytes();
+    while i < bytes.len() {
+        if let Some(ansi) = extract_ansi_code(line, i) {
+            i += ansi.length;
+            continue;
+        }
+        let char = line[i..].chars().next().unwrap();
+        let mut cluster = char.to_string();
+        i += char.len_utf8();
+        loop {
+            let Some(next) = line[i..].chars().next() else { break };
+            if extract_ansi_code(line, i).is_some() {
+                break;
+            }
+            let next_cp = next as u32;
+            if is_mark(next_cp) || next == '\u{FE0F}' || next == '\u{200D}' {
+                cluster.push(next);
+                i += next.len_utf8();
+                if next == '\u{200D}' {
+                    if let Some(joined) = line[i..].chars().next() {
+                        cluster.push(joined);
+                        i += joined.len_utf8();
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        let width = grapheme_width(&cluster);
+        if width > 0.0 && column >= current_col && column < current_col + width {
+            return Some((current_col, current_col + width));
+        }
+        current_col += width;
+    }
+    None
+}
+
 /// Extract ANSI escape sequences from a string at the given byte position.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnsiCode {

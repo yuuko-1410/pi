@@ -78,6 +78,10 @@ impl ScrollView {
         })
     }
 
+    pub fn child_ref(&self) -> &Arc<dyn Component> {
+        &self.child
+    }
+
     pub fn scroll_top(&self) -> f64 {
         self.current_scroll_top
     }
