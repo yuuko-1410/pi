@@ -14,6 +14,7 @@ pub mod undo_stack;
 pub mod word_navigation;
 pub mod native_modifiers;
 pub mod stdin_buffer;
+pub mod terminal;
 pub mod terminal_colors;
 pub mod terminal_image;
 pub mod utils;
