@@ -1,4 +1,5 @@
 pub mod basic;
+pub mod editor;
 pub mod image;
 pub mod input;
 pub mod loader;
