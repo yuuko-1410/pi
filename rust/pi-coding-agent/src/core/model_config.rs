@@ -91,6 +91,26 @@ impl ModelConfig {
         }
     }
 
+    /// Load from a JSON string (test helper; mirrors load from a file).
+    pub fn load_from_content(content: &str) -> ModelConfig {
+        let parsed: Value = match pi_ai::utils::json::parse_json_with_repair(&strip_json_comments(content)) {
+            Ok(value) => value,
+            Err(error) => {
+                return Self::new(
+                    HashMap::new(),
+                    Some(format!("Failed to parse models.json: {error}")),
+                );
+            }
+        };
+        match validate_and_build(&parsed) {
+            Ok(providers) => Self::new(providers, None),
+            Err(errors) => Self::new(
+                HashMap::new(),
+                Some(format!("Invalid models.json schema:\n{errors}")),
+            ),
+        }
+    }
+
     pub fn get_provider(&self, provider_id: &str) -> Option<&ModelsJsonProvider> {
         self.providers.get(provider_id)
     }
