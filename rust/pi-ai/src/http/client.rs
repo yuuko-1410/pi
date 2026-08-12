@@ -47,6 +47,35 @@ impl HttpClient {
         request
     }
 
+    /// Sends a GET request and returns the streaming response.
+    pub fn get(
+        &self,
+        url: &str,
+        headers: &[(String, String)],
+        timeout_ms: Option<u64>,
+    ) -> Result<HttpResponse, ProviderError> {
+        let mut request = self.request("GET", url);
+        request = Self::apply_headers(request, headers);
+        if let Some(timeout_ms) = timeout_ms {
+            request = request.timeout(Duration::from_millis(timeout_ms));
+        }
+        let response = request.call().map_err(to_provider_error)?;
+        let status = response.status();
+        let headers = response.headers_names()
+            .into_iter()
+            .filter_map(|name| {
+                let value = response.header(&name)?;
+                Some((name.to_string(), value.to_string()))
+            })
+            .collect();
+        let reader: Box<dyn Read + Send> = Box::new(response.into_reader());
+        Ok(HttpResponse {
+            status,
+            headers,
+            reader,
+        })
+    }
+
     /// Sends a JSON body and returns the streaming response (body reader for
     /// SSE consumption). Non-2xx responses raise a `ProviderError` with the
     /// truncated body.
