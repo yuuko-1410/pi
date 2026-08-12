@@ -203,6 +203,23 @@ impl SqliteDatabase for RusqliteDatabase {
 /// Open a database file (or in-memory when path is ":memory:").
 pub struct FileDatabaseFactory;
 
+impl FileDatabaseFactory {
+    pub fn open_file(path: &str) -> Result<RusqliteDatabase, String> {
+        let connection = if path == ":memory:" {
+            Connection::open_in_memory()
+        } else {
+            Connection::open_with_flags(
+                path,
+                OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            )
+        }
+        .map_err(|error| error.to_string())?;
+        Ok(RusqliteDatabase {
+            connection: Mutex::new(connection),
+        })
+    }
+}
+
 impl SqliteDatabaseFactory for FileDatabaseFactory {
     fn open(&self, path: &str) -> Result<Arc<RusqliteDatabase>, String> {
         let connection = if path == ":memory:" {
