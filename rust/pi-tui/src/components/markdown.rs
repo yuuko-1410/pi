@@ -480,6 +480,7 @@ fn build_list_item(collected: &[(String, usize)], ordered: bool, indent: usize) 
 // Rendering
 // ---------------------------------------------------------------------------
 
+#[derive(Clone)]
 pub struct MarkdownTheme {
     pub heading: Arc<dyn Fn(&str) -> String + Send + Sync>,
     pub bold: Arc<dyn Fn(&str) -> String + Send + Sync>,

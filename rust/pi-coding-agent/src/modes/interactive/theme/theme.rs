@@ -741,6 +741,88 @@ pub fn current_theme_name() -> Option<String> {
     CURRENT_THEME_NAME.lock().unwrap().clone()
 }
 
+/// Available theme names: built-ins (dark, light) plus custom themes from
+/// the themes dir, mirrors getAvailableThemes.
+pub fn get_available_themes() -> Vec<String> {
+    let mut names: Vec<String> = vec!["dark".to_string(), "light".to_string()];
+    if let Ok(entries) = std::fs::read_dir(get_custom_themes_dir()) {
+        let mut custom: Vec<String> = entries
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                let path = entry.path();
+                if path.extension().is_some_and(|ext| ext == "json") {
+                    path.file_stem().map(|stem| stem.to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        custom.sort();
+        for name in custom {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+    }
+    names
+}
+
+/// The TUI SelectList theme adapter (getSelectListTheme).
+pub fn get_select_list_theme() -> pi_tui::components::select_list::SelectListTheme {
+    use pi_tui::components::select_list::SelectListTheme;
+    SelectListTheme {
+        selected_prefix: std::sync::Arc::new(|text| theme().as_ref().map(|t| t.fg("accent", text)).unwrap_or_else(|| text.to_string())),
+        selected_text: std::sync::Arc::new(|text| theme().as_ref().map(|t| t.fg("accent", text)).unwrap_or_else(|| text.to_string())),
+        description: std::sync::Arc::new(|text| theme().as_ref().map(|t| t.fg("muted", text)).unwrap_or_else(|| text.to_string())),
+        scroll_info: std::sync::Arc::new(|text| theme().as_ref().map(|t| t.fg("muted", text)).unwrap_or_else(|| text.to_string())),
+        no_match: std::sync::Arc::new(|text| theme().as_ref().map(|t| t.fg("muted", text)).unwrap_or_else(|| text.to_string())),
+    }
+}
+
+/// The TUI Markdown theme adapter (getMarkdownTheme).
+pub fn get_markdown_theme() -> pi_tui::components::markdown::MarkdownTheme {
+    use pi_tui::components::markdown::MarkdownTheme;
+    let fg_color = |color: &str| {
+        let ansi = theme().as_ref().map(|t| t.get_fg_ansi(color)).unwrap_or_default();
+        if ansi.is_empty() {
+            std::sync::Arc::new(|text: &str| text.to_string()) as std::sync::Arc<dyn Fn(&str) -> String + Send + Sync>
+        } else {
+            std::sync::Arc::new(move |text: &str| format!("{ansi}{text}\x1b[39m")) as std::sync::Arc<dyn Fn(&str) -> String + Send + Sync>
+        }
+    };
+    MarkdownTheme {
+        heading: fg_color("mdHeading"),
+        bold: std::sync::Arc::new(|text: &str| {
+            theme().as_ref().map(|t| t.bold(text)).unwrap_or_else(|| text.to_string())
+        }),
+        italic: std::sync::Arc::new(|text: &str| {
+            theme().as_ref().map(|t| t.italic(text)).unwrap_or_else(|| text.to_string())
+        }),
+        underline: std::sync::Arc::new(|text: &str| {
+            theme().as_ref().map(|t| t.underline(text)).unwrap_or_else(|| text.to_string())
+        }),
+        strikethrough: std::sync::Arc::new(|text: &str| {
+            theme().as_ref().map(|t| t.strikethrough(text)).unwrap_or_else(|| text.to_string())
+        }),
+        code: fg_color("mdCode"),
+        code_block: fg_color("mdCodeBlock"),
+        code_block_border: fg_color("mdCodeBlockBorder"),
+        code_block_indent: String::new(),
+        quote: fg_color("mdQuote"),
+        quote_border: fg_color("mdQuoteBorder"),
+        link: fg_color("mdLink"),
+        link_url: fg_color("mdLinkUrl"),
+        list_bullet: fg_color("mdListBullet"),
+        hr: fg_color("mdHr"),
+        highlight_code: Some(std::sync::Arc::new(|code: &str, _lang: &str| {
+            // ponytail: highlight.js is not ported; mdCodeBlock fallback.
+            code.split('\n')
+                .map(|line| theme().as_ref().map(|t| t.fg("mdCodeBlock", line)).unwrap_or_else(|| line.to_string()))
+                .collect()
+        })),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -106,6 +106,10 @@ impl Box {
     pub fn add_child(&mut self, component: Arc<dyn Component>) {
         self.children.push(component);
     }
+
+    pub fn clear(&mut self) {
+        self.children.clear();
+    }
 }
 
 impl Component for Box {

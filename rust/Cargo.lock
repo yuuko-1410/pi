@@ -298,10 +298,13 @@ dependencies = [
 name = "pi-coding-agent"
 version = "0.84.1"
 dependencies = [
+ "base64",
  "pi-agent-core",
  "pi-ai",
  "pi-protocol",
  "pi-telemetry",
+ "pi-tui",
+ "regex",
 ]
 
 [[package]]
