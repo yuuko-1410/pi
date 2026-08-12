@@ -382,7 +382,7 @@ pub fn discover_extension_paths(configured_paths: &[String], cwd: &str, agent_di
     let mut all_paths: Vec<String> = Vec::new();
     let seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    let mut add_paths = |paths: Vec<String>, all_paths: &mut Vec<String>, seen: &mut std::collections::HashSet<String>| {
+    let add_paths = |paths: Vec<String>, all_paths: &mut Vec<String>, seen: &mut std::collections::HashSet<String>| {
         for path in paths {
             let resolved = std::path::Path::new(&path)
                 .canonicalize()
