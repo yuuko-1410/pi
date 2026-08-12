@@ -10,6 +10,7 @@ pub mod config;
 pub mod migrations;
 pub mod utils;
 pub mod client;
+pub mod server;
 pub mod app;
 pub mod cli;
 
