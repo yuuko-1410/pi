@@ -138,13 +138,6 @@ impl StackLayoutEntry {
     }
 }
 
-fn normalize_size(value: Option<f64>, fallback: f64) -> f64 {
-    match value {
-        Some(value) if value.is_finite() => value.max(0.0).floor(),
-        _ => fallback,
-    }
-}
-
 /// Filter entries by visibility.
 pub fn visible_stack_entries(entries: &[StackLayoutEntry], viewport: &LayoutViewport) -> Vec<StackLayoutEntry> {
     entries
