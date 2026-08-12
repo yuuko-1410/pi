@@ -86,8 +86,8 @@ pub fn exec_command(command: &str, args: &[String], cwd: &str, options: &ExecOpt
         None => 1,
     };
 
-    stdout = stdout_handle.join().unwrap_or_default();
-    stderr = stderr_handle.join().unwrap_or_default();
+    let stdout = stdout_handle.join().unwrap_or_default();
+    let stderr = stderr_handle.join().unwrap_or_default();
     if killed {
         let _ = child.wait();
     }
