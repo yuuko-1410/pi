@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::terminal::Terminal;
 use crate::terminal_image::{delete_kitty_image, is_image_line};
-use crate::tui::{Component, CURSOR_MARKER, TuiBase};
+use crate::tui::{CURSOR_MARKER, TuiBase};
 use crate::utils::visible_width;
 
 #[derive(Clone, Debug, Default)]
@@ -166,7 +166,7 @@ impl TuiMainScreen {
         let cursor_pos = self.extract_cursor_position(&mut new_lines, height);
 
         // Full render helper.
-        let mut full_render = |this: &mut Self, clear: bool| {
+        let full_render = |this: &mut Self, clear: bool| {
             this.base.full_redraw_count += 1;
             let mut buffer = "\x1b[?2026h".to_string();
             if clear {
