@@ -746,7 +746,7 @@ pub fn visible_width(str: &str) -> f64 {
 
     // Cache (bounded).
     {
-        let mut cache = WIDTH_CACHE.lock().unwrap();
+        let cache = WIDTH_CACHE.lock().unwrap();
         if let Some(cache) = cache.as_ref() {
             if let Some(cached) = cache.get(str) {
                 return *cached;
@@ -892,7 +892,7 @@ pub fn extract_ansi_code(str: &str, pos: usize) -> Option<AnsiCode> {
 /// (same cell width, avoids stale-cell artifacts); visible tabs expand to
 /// the fixed width used by layout.
 pub fn normalize_terminal_output(str: &str) -> String {
-    let mut normalized = str.replace('\u{0E33}', "\u{0E4D}\u{0E32}").replace('\u{0EB3}', "\u{0ECD}\u{0EB2}");
+    let normalized = str.replace('\u{0E33}', "\u{0E4D}\u{0E32}").replace('\u{0EB3}', "\u{0ECD}\u{0EB2}");
     if !normalized.contains('\t') {
         return normalized;
     }
