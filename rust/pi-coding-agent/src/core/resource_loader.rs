@@ -919,6 +919,7 @@ fn _inline_extension_reference(extension: InlineExtension) -> Extension {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::extensions::types::RegisteredTool;
 
     #[test]
     fn loads_context_files_from_directory() {
