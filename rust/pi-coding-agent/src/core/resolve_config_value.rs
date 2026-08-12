@@ -262,7 +262,7 @@ pub fn resolve_config_value_or_throw(
         ConfigValueReference::Command(command) => {
             Err(format!("Failed to resolve {description} from shell command: {}", &command[1..]))
         }
-        ConfigValueReference::Template(parts) => {
+        ConfigValueReference::Template(_) => {
             let missing = get_missing_config_value_env_var_names(config, env);
             match missing.len() {
                 1 => Err(format!(

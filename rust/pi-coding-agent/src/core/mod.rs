@@ -14,6 +14,7 @@ pub mod session_paths;
 pub mod session_types;
 pub mod settings_manager;
 pub mod resolve_config_value;
+pub mod auth_storage;
 pub mod timings;
 pub mod runtime_credentials;
 pub mod experimental;
