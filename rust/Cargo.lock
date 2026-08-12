@@ -314,6 +314,9 @@ dependencies = [
 name = "pi-sqlite"
 version = "0.84.1"
 dependencies = [
+ "pi-agent-core",
+ "pi-ai",
+ "pi-protocol",
  "rusqlite",
 ]
 

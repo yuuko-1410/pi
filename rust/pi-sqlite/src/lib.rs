@@ -4,5 +4,7 @@
 pub mod database;
 pub mod migrations;
 pub mod sql;
+pub mod repo;
 pub mod search_backend;
 pub mod storage;
+pub mod util;

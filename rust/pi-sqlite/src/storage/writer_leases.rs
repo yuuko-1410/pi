@@ -1,7 +1,7 @@
 //! Writer lease table access, port of
 //! `packages/session-backends/sqlite-node/src/sqlite/storage/writer-leases.ts`.
 
-use crate::database::{query_get, query_run, query_exec, SqliteDatabase};
+use crate::database::{query_get, query_run, SqliteDatabase};
 use crate::sql::SqlPart;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -91,7 +91,7 @@ pub fn release_writer_lease(
 }
 
 pub fn delete_writer_lease(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), String> {
-    query_exec(
+    query_run(
         db,
         &crate::sql! {
             "DELETE FROM writer_leases WHERE session_id = ",

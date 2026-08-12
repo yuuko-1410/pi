@@ -3,7 +3,7 @@
 
 use pi_agent_core::harness::session_types::SessionError;
 
-use crate::database::{query_get, query_run, query_exec, SqliteDatabase};
+use crate::database::{query_get, query_run, SqliteDatabase};
 use crate::sql::SqlPart;
 
 pub fn create_sequence(
@@ -64,7 +64,7 @@ pub fn advance_sequence(db: &dyn SqliteDatabase, session_id: &str, seq: f64) -> 
 }
 
 pub fn delete_sequence(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), String> {
-    query_exec(
+    query_run(
         db,
         &crate::sql! {
             "DELETE FROM session_sequences WHERE session_id = ",

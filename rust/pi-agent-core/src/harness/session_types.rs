@@ -451,6 +451,26 @@ impl Entry {
         }
     }
 
+    /// Storage-assigned fields applied on commit (parent_id/seq/timestamp).
+    pub fn with_storage_fields(&self, parent_id: Option<String>, seq: f64, timestamp: f64) -> Entry {
+        let apply = |base: &mut EntryBase| {
+            base.parent_id = parent_id.clone();
+            base.seq = seq;
+            base.timestamp = timestamp;
+        };
+        let mut clone = self.clone();
+        match &mut clone {
+            Entry::Message(entry) => apply(&mut entry.base),
+            Entry::ModelChange(entry) => apply(&mut entry.base),
+            Entry::ThinkingLevelChange(entry) => apply(&mut entry.base),
+            Entry::ActiveToolsChange(entry) => apply(&mut entry.base),
+            Entry::Compaction(entry) => apply(&mut entry.base),
+            Entry::BranchSummary(entry) => apply(&mut entry.base),
+            Entry::Custom(entry) => apply(&mut entry.base),
+        }
+        clone
+    }
+
     pub fn seq(&self) -> f64 {
         match self {
             Entry::Message(entry) => entry.base.seq,
@@ -550,6 +570,7 @@ impl LaneRecord {
             LaneRecord::Usage(record) => &record.base.id,
         }
     }
+
 
     pub fn seq(&self) -> f64 {
         match self {
