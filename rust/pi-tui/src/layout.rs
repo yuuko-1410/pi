@@ -402,22 +402,6 @@ fn layout_node_of(context: &LayoutContext, component: &Arc<dyn Component>) -> Op
         .cloned()
 }
 
-
-impl DowncastArc for dyn Component {
-    fn downcast_arc<T: 'static>(self: Arc<Self>) -> Option<Arc<T>> {
-        // Reconstruct from the concrete type via the LayoutAware bound:
-        // this implementation relies on the concrete type implementing
-        // both Component and T; the downcast succeeds through a raw cast.
-        // Safety: only called with T = dyn LayoutAware and the concrete
-        // type implements it (enforced at construction sites by the
-        // compiler when the component is created as Arc<dyn LayoutAware>).
-        unsafe {
-            let raw = Arc::into_raw(self) as *const ();
-            Some(Arc::from_raw(raw as *const T))
-        }
-    }
-}
-
 fn style_scrollbar_cell(
     line: &str,
     column: f64,
