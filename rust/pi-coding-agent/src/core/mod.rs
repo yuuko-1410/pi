@@ -48,5 +48,7 @@ pub mod experimental;
 pub mod diagnostics;
 pub mod usage_totals;
 pub mod cache_stats;
+pub mod package_manager_cli;
+pub mod rpc_entry;
 pub mod tools;
 pub mod auth_guidance;

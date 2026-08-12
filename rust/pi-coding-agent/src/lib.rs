@@ -9,3 +9,6 @@ pub mod modes;
 pub mod config;
 pub mod migrations;
 pub mod utils;
+pub mod app;
+pub mod cli;
+
