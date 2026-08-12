@@ -6,11 +6,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::components::scroll_view::{ScrollState, ScrollView};
+use crate::components::scroll_view::ScrollView;
 use crate::layout_node::{LayoutAlign, LayoutNode, StackKind};
 use crate::terminal_image::{crop_kitty_image_line, get_kitty_image_metadata, is_image_line};
 use crate::tui::{composite_tui_line, Component, CURSOR_MARKER};
-use crate::utils::{extract_ansi_code, extract_segments, get_grapheme_cell_range, slice_by_column, visible_width};
+use crate::utils::{extract_ansi_code, get_grapheme_cell_range, slice_by_column, visible_width};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LayoutRect {
@@ -402,10 +402,6 @@ fn layout_node_of(context: &LayoutContext, component: &Arc<dyn Component>) -> Op
         .cloned()
 }
 
-/// Downcast helper for Arc<dyn Component> to Arc<dyn LayoutAware>.
-trait DowncastArc {
-    fn downcast_arc<T: 'static>(self: Arc<Self>) -> Option<Arc<T>>;
-}
 
 impl DowncastArc for dyn Component {
     fn downcast_arc<T: 'static>(self: Arc<Self>) -> Option<Arc<T>> {
