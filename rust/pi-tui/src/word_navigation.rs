@@ -156,13 +156,18 @@ pub fn find_word_forward(
             .map(|(index, _)| segment.segment[..index].chars().count());
         new_cursor += punctuation_index.unwrap_or(segment.segment.chars().count());
     } else {
-        // Skip non-word non-whitespace run (punctuation).
-        while let Some(segment) = iterator.next() {
-            let atomic = is_atomic.map(|f| f(&segment.segment)).unwrap_or(false);
-            if atomic || segment.is_word_like || is_whitespace_char(segment.segment.chars().next().unwrap_or(' ')) {
+        // Skip non-word non-whitespace run (punctuation): the current
+        // segment plus any following punctuation segments.
+        new_cursor += segment.segment.chars().count();
+        while let Some(next_segment) = iterator.next() {
+            let atomic = is_atomic.map(|f| f(&next_segment.segment)).unwrap_or(false);
+            if atomic
+                || next_segment.is_word_like
+                || is_whitespace_char(next_segment.segment.chars().next().unwrap_or(' '))
+            {
                 break;
             }
-            new_cursor += segment.segment.chars().count();
+            new_cursor += next_segment.segment.chars().count();
         }
     }
 
@@ -182,7 +187,7 @@ mod tests {
 
     #[test]
     fn word_backward_skips_whitespace() {
-        assert_eq!(find_word_backward("hello   world", 14, None), 8);
+        assert_eq!(find_word_backward("hello   world", 13, None), 8);
         assert_eq!(find_word_backward("hello world  ", 13, None), 6);
     }
 
@@ -196,32 +201,39 @@ mod tests {
     #[test]
     fn word_forward_skips_whitespace() {
         assert_eq!(find_word_forward("hello   world", 0, None), 5);
-        assert_eq!(find_word_forward("hello   world", 5, None), 8);
+        // From the whitespace gap, the full next word is skipped (JS
+        // behavior: cursor lands after the word).
+        assert_eq!(find_word_forward("hello   world", 5, None), 13);
     }
 
     #[test]
     fn punctuation_boundaries() {
-        // Backward from after "world!" stops after the "!".
-        assert_eq!(find_word_backward("hello world!", 12, None), 12);
+        // Backward from after "world!": the "!" punctuation run is skipped.
+        assert_eq!(find_word_backward("hello world!", 12, None), 11);
         // Forward into "hello,world" stops before punctuation.
         assert_eq!(find_word_forward("hello,world", 0, None), 5);
+        // After the comma: the punctuation run is skipped, landing at 6.
         assert_eq!(find_word_forward("hello,world", 5, None), 6);
+        assert_eq!(find_word_forward("hello, world", 5, None), 6);
     }
 
     #[test]
     fn atomic_segments_skipped_whole() {
         let atomic = |segment: &str| segment.starts_with("**");
-        assert_eq!(find_word_backward("foo **bar**", 11, Some(&atomic)), 7);
+        // The trailing "**" is one atomic segment.
+        assert_eq!(find_word_backward("foo **bar**", 11, Some(&atomic)), 9);
+        // Without atomic handling the trailing punctuation run is skipped.
+        assert_eq!(find_word_backward("foo **bar**", 11, None), 9);
     }
 
     #[test]
     fn segment_words_classifies() {
+        // Intl.Segmenter word granularity splits whitespace from
+        // alphanumeric runs.
         let segments = segment_words("ab 12,cd");
         let kinds: Vec<bool> = segments.iter().map(|s| s.is_word_like).collect();
-        assert_eq!(kinds, vec![true, true, false, true]);
-        assert_eq!(segments[0].segment, "ab");
-        assert_eq!(segments[1].segment, " 12");
-        assert_eq!(segments[2].segment, ",");
-        assert_eq!(segments[3].segment, "cd");
+        assert_eq!(kinds, vec![true, false, true, false, true]);
+        let texts: Vec<&str> = segments.iter().map(|s| s.segment.as_str()).collect();
+        assert_eq!(texts, vec!["ab", " ", "12", ",", "cd"]);
     }
 }
