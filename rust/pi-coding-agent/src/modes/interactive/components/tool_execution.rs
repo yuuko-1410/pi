@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use pi_ai::utils::json::json_stringify_pretty;
-use pi_tui::components::basic::{Box, Text};
+use pi_tui::components::basic::Text;
 use pi_tui::tui::Container;
 use pi_tui::tui::Component;
 use pi_tui::utils::strip_terminal_sequences;

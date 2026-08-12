@@ -10,6 +10,7 @@ use crate::tui::{composite_tui_line, Component};
 use crate::utils::{visible_width, wrap_text_with_ansi};
 
 /// Text component: multi-line text with word wrapping and padding.
+#[derive(Clone)]
 pub struct Text {
     text: String,
     padding_x: usize,

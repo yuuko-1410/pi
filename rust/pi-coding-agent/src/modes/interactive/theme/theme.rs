@@ -6,7 +6,6 @@
 //! and theme reload requires an explicit set_theme call.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 use crate::core::source_info::SourceInfo;
 
@@ -203,6 +202,7 @@ pub enum ColorMode {
 }
 
 /// Theme with resolved ANSI codes for fg and bg colors.
+#[derive(Clone)]
 pub struct Theme {
     pub name: Option<String>,
     pub source_path: Option<String>,
@@ -698,20 +698,22 @@ pub fn get_settings_label_color(theme: &Theme, selected: bool) -> String {
 // Global theme instance
 // ---------------------------------------------------------------------------
 
-static GLOBAL_THEME: Mutex<Option<Theme>> = Mutex::new(None);
-static CURRENT_THEME_NAME: Mutex<Option<String>> = Mutex::new(None);
+thread_local! {
+    static GLOBAL_THEME: std::cell::RefCell<Option<Theme>> = std::cell::RefCell::new(None);
+    static CURRENT_THEME_NAME: std::cell::RefCell<Option<String>> = std::cell::RefCell::new(None);
+}
 
 /// Initialize the global theme (falls back to dark on failure).
 pub fn init_theme(theme_name: Option<&str>) {
     let name = theme_name.map(|value| value.to_string()).unwrap_or_else(get_default_theme);
     match load_theme(&name, None) {
         Ok(theme) => {
-            *CURRENT_THEME_NAME.lock().unwrap() = Some(name);
-            *GLOBAL_THEME.lock().unwrap() = Some(theme);
+            CURRENT_THEME_NAME.with(|cell| *cell.borrow_mut() = Some(name));
+            GLOBAL_THEME.with(|cell| *cell.borrow_mut() = Some(theme));
         }
         Err(_) => {
-            *CURRENT_THEME_NAME.lock().unwrap() = Some("dark".to_string());
-            *GLOBAL_THEME.lock().unwrap() = load_theme("dark", None).ok();
+            CURRENT_THEME_NAME.with(|cell| *cell.borrow_mut() = Some("dark".to_string()));
+            GLOBAL_THEME.with(|cell| *cell.borrow_mut() = load_theme("dark", None).ok());
         }
     }
 }
@@ -720,25 +722,29 @@ pub fn init_theme(theme_name: Option<&str>) {
 pub fn set_theme(name: &str) -> (bool, Option<String>) {
     match load_theme(name, None) {
         Ok(theme) => {
-            *CURRENT_THEME_NAME.lock().unwrap() = Some(name.to_string());
-            *GLOBAL_THEME.lock().unwrap() = Some(theme);
+            CURRENT_THEME_NAME.with(|cell| *cell.borrow_mut() = Some(name.to_string()));
+            GLOBAL_THEME.with(|cell| *cell.borrow_mut() = Some(theme));
             (true, None)
         }
         Err(error) => {
-            *CURRENT_THEME_NAME.lock().unwrap() = Some("dark".to_string());
-            *GLOBAL_THEME.lock().unwrap() = load_theme("dark", None).ok();
+            CURRENT_THEME_NAME.with(|cell| *cell.borrow_mut() = Some("dark".to_string()));
+            GLOBAL_THEME.with(|cell| *cell.borrow_mut() = load_theme("dark", None).ok());
             (false, Some(error))
         }
     }
 }
 
 /// The active global theme (JS `theme` proxy).
-pub fn theme() -> std::sync::MutexGuard<'static, Option<Theme>> {
-    GLOBAL_THEME.lock().unwrap()
+///
+/// ponytail: returns an owned clone from thread-local storage instead of a
+/// shared lock guard. Components may render children that also read the
+/// theme without deadlocking (std Mutex is not reentrant).
+pub fn theme() -> Option<Theme> {
+    GLOBAL_THEME.with(|cell| cell.borrow().clone())
 }
 
 pub fn current_theme_name() -> Option<String> {
-    CURRENT_THEME_NAME.lock().unwrap().clone()
+    CURRENT_THEME_NAME.with(|cell| cell.borrow().clone())
 }
 
 /// Available theme names: built-ins (dark, light) plus custom themes from
