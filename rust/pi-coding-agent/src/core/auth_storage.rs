@@ -580,8 +580,7 @@ impl CredentialStore for AuthStorage {
             }
         };
         self.storage.with_lock(&mut update);
-        let mut this = self.write_state();
-        this.update_read_state(latest_data, None);
+        self.write_state().update_read_state(latest_data, None);
     }
 }
 

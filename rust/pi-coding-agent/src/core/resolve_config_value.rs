@@ -11,8 +11,6 @@ use crate::utils::shell::get_shell_config;
 
 static COMMAND_RESULT_CACHE: Mutex<Option<HashMap<String, Option<String>>>> = Mutex::new(None);
 
-const ENV_VAR_NAME_RE: &str = r"^[A-Za-z_][A-Za-z0-9_]*$";
-
 enum TemplatePart {
     Literal(String),
     Env(String),

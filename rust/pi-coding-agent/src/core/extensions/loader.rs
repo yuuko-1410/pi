@@ -380,7 +380,7 @@ pub fn discover_extension_paths(configured_paths: &[String], cwd: &str, agent_di
     let resolved_cwd = resolve_path(cwd, cwd, &PathInputOptions::default());
     let resolved_agent_dir = resolve_path(agent_dir, agent_dir, &PathInputOptions::default());
     let mut all_paths: Vec<String> = Vec::new();
-    let seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     let add_paths = |paths: Vec<String>, all_paths: &mut Vec<String>, seen: &mut std::collections::HashSet<String>| {
         for path in paths {

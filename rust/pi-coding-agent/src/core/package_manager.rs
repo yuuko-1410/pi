@@ -200,14 +200,7 @@ fn relative_path(base: &str, path: &str) -> String {
         .unwrap_or_else(|_| to_posix_path(&path.to_string_lossy()))
 }
 
-fn relative_or_base(base: &str, path: &str) -> String {
-    let relative = relative_path(base, path);
-    if relative.is_empty() {
-        ".".to_string()
-    } else {
-        relative
-    }
-}
+
 
 /// Simplified gitignore matcher (comments, negation, directory rules, star/
 /// question globs; `**` crosses separators via `*`).
@@ -497,22 +490,9 @@ pub fn collect_auto_extension_entries(dir: &str) -> Vec<String> {
 // Pattern filtering
 // ---------------------------------------------------------------------------
 
-fn is_pattern(s: &str) -> bool {
-    s.starts_with('!') || s.starts_with('+') || s.starts_with('-') || s.contains('*') || s.contains('?')
-}
 
-fn split_patterns(entries: &[String]) -> (Vec<String>, Vec<String>) {
-    let mut plain: Vec<String> = Vec::new();
-    let mut patterns: Vec<String> = Vec::new();
-    for entry in entries {
-        if is_pattern(entry) {
-            patterns.push(entry.clone());
-        } else {
-            plain.push(entry.clone());
-        }
-    }
-    (plain, patterns)
-}
+
+
 
 fn basename(path: &str) -> String {
     Path::new(path)

@@ -18,6 +18,8 @@ pub mod settings_manager;
 pub mod resolve_config_value;
 pub mod auth_storage;
 pub mod keybindings;
+pub mod footer_data_provider;
+pub mod compaction;
 pub mod timings;
 pub mod prompt_templates;
 pub mod system_prompt;
