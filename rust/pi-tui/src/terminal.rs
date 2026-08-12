@@ -118,7 +118,6 @@ pub struct ProcessTerminal {
     keyboard_protocol_pushed: bool,
     keyboard_protocol_negotiation_buffer: String,
     input_handler: Mutex<Option<Arc<dyn Fn(&str) + Send + Sync>>>,
-    stdin_buffer: Mutex<Option<StdinBuffer>>,
     raw_mode: Mutex<RawMode>,
     write_log_path: String,
     progress_active: bool,
@@ -134,7 +133,6 @@ impl ProcessTerminal {
             keyboard_protocol_pushed: false,
             keyboard_protocol_negotiation_buffer: String::new(),
             input_handler: Mutex::new(None),
-            stdin_buffer: Mutex::new(None),
             raw_mode: Mutex::new(RawMode { active: false }),
             write_log_path,
             progress_active: false,
@@ -178,31 +176,6 @@ impl ProcessTerminal {
         }
     }
 
-    fn read_negotiation_sequence(&mut self, sequence: &str) -> Option<KeyboardProtocolNegotiationSequence> {
-        if !self.keyboard_protocol_negotiation_buffer.is_empty() {
-            let buffered = format!("{}{sequence}", self.keyboard_protocol_negotiation_buffer);
-            if let Some(negotiation) = parse_keyboard_protocol_negotiation_sequence(&buffered) {
-                self.clear_negotiation_buffer();
-                return Some(negotiation);
-            }
-            if is_keyboard_protocol_negotiation_sequence_prefix(&buffered) {
-                self.keyboard_protocol_negotiation_buffer = buffered;
-                return Some(KeyboardProtocolNegotiationSequence::KittyFlags { flags: 0 }); // placeholder; buffered
-            }
-            // Flush the buffer as input.
-            let flushed = self.keyboard_protocol_negotiation_buffer.clone();
-            self.clear_negotiation_buffer();
-            self.forward_input_sequence(&flushed);
-        }
-        if let Some(negotiation) = parse_keyboard_protocol_negotiation_sequence(sequence) {
-            return Some(negotiation);
-        }
-        if is_keyboard_protocol_negotiation_sequence_prefix(sequence) {
-            self.keyboard_protocol_negotiation_buffer = sequence.to_string();
-            return Some(KeyboardProtocolNegotiationSequence::KittyFlags { flags: 0 });
-        }
-        None
-    }
 
     fn clear_negotiation_buffer(&mut self) {
         self.keyboard_protocol_negotiation_buffer.clear();
