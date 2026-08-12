@@ -217,6 +217,16 @@ impl AgentSession {
         self.session_manager.lock().unwrap()
     }
 
+    /// Model runtime for this session (model selector, provider counts).
+    pub fn model_runtime(&self) -> Arc<ModelRuntime> {
+        self.model_runtime.clone()
+    }
+
+    /// Whether auto-compaction is enabled (footer indicator).
+    pub fn is_auto_compaction_enabled(&self) -> bool {
+        self.auto_compaction_enabled.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
     pub fn model(&self) -> Option<Model> {
         let model = self.agent.lock().unwrap().state().model;
         if model.provider.is_empty() || model.provider == "unknown" {

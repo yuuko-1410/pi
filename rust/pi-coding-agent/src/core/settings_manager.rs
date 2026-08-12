@@ -765,6 +765,10 @@ impl SettingsManager {
         }
     }
 
+    pub fn get_quiet_startup(&self) -> bool {
+        self.get_bool("quietStartup", false)
+    }
+
     pub fn set_quiet_startup(&mut self, quiet: bool) {
         self.set_global("quietStartup", Value::Bool(quiet));
     }

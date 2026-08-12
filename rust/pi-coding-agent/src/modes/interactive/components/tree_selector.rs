@@ -925,6 +925,16 @@ impl TreeSelectorComponent {
     pub fn get_tree_list_mut(&mut self) -> &mut TreeList {
         &mut self.inner
     }
+
+    /// Wire selection/cancel callbacks into the underlying list.
+    pub fn set_callbacks(
+        &mut self,
+        on_select: Arc<dyn Fn(&str) + Send + Sync>,
+        on_cancel: Arc<dyn Fn() + Send + Sync>,
+    ) {
+        self.inner.on_select = Some(on_select);
+        self.inner.on_cancel = Some(on_cancel);
+    }
 }
 
 impl Component for TreeSelectorComponent {

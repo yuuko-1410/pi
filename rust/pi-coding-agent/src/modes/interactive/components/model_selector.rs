@@ -9,7 +9,6 @@ use pi_tui::keybindings::get_keybindings;
 use pi_tui::tui::Component;
 
 use crate::core::model_runtime::ModelRuntime;
-use crate::core::settings_manager::SettingsManager;
 use crate::modes::interactive::components::dynamic_border::DynamicBorder;
 use crate::modes::interactive::components::keybinding_hints::key_hint;
 use crate::modes::interactive::theme::theme::theme;
@@ -25,7 +24,6 @@ pub struct ModelSelectorComponent {
     filtered_models: Vec<Model>,
     selected_index: usize,
     current_model: Option<Model>,
-    settings_manager: SettingsManager,
     on_select: Arc<dyn Fn(Model) + Send + Sync>,
     on_cancel: Arc<dyn Fn() + Send + Sync>,
     error_message: Option<String>,
@@ -35,7 +33,6 @@ pub struct ModelSelectorComponent {
 impl ModelSelectorComponent {
     pub fn new(
         current_model: Option<Model>,
-        settings_manager: SettingsManager,
         model_runtime: &ModelRuntime,
         scoped_models: &[crate::core::model_resolver::ScopedModel],
         on_select: Arc<dyn Fn(Model) + Send + Sync>,
@@ -67,7 +64,6 @@ impl ModelSelectorComponent {
             filtered_models: Vec::new(),
             selected_index: 0,
             current_model,
-            settings_manager,
             on_select,
             on_cancel,
             error_message: model_runtime.get_error(),
@@ -112,8 +108,6 @@ impl ModelSelectorComponent {
     }
 
     fn handle_select(&mut self, model: &Model) {
-        self.settings_manager.set_default_provider(&model.provider);
-        self.settings_manager.set_default_model(&model.id);
         (self.on_select)(model.clone());
     }
 }
