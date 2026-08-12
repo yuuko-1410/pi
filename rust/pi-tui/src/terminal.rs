@@ -181,6 +181,7 @@ impl ProcessTerminal {
         self.keyboard_protocol_negotiation_buffer.clear();
     }
 
+    #[allow(dead_code)]
     fn forward_input_sequence(&self, sequence: &str) {
         let handler = self.input_handler.lock().unwrap().clone();
         if let Some(handler) = handler {

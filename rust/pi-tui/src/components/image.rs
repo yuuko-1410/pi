@@ -95,9 +95,7 @@ impl Component for Image {
             );
             match result {
                 Some(result) => {
-                    if let Some(rendered_id) = result.image_id {
-                        image_id = Some(rendered_id);
-                    }
+                    let _ = result.image_id;
                     if caps.images.as_deref() == Some("kitty") {
                         lines.push(result.sequence.clone());
                         for _ in 0..(result.rows as usize).saturating_sub(1) {
