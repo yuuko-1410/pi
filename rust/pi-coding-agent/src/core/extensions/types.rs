@@ -147,9 +147,11 @@ pub struct Extension {
     pub path: String,
     pub resolved_path: String,
     pub hidden: Option<bool>,
+    pub source: Option<String>,
     pub handlers: std::collections::HashMap<String, Vec<HandlerFn>>,
     pub tools: std::collections::HashMap<String, RegisteredTool>,
     pub commands: std::collections::HashMap<String, RegisteredCommand>,
+    pub flags: std::collections::HashMap<String, crate::core::extensions::loader::ExtensionFlag>,
 }
 
 /// Result of loading extensions (JS `LoadExtensionsResult`).
@@ -208,6 +210,7 @@ impl InlineExtension {
             path: self.path.clone().unwrap_or_else(|| format!("inline:{}", self.name)),
             resolved_path: self.path.clone().unwrap_or_else(|| format!("inline:{}", self.name)),
             hidden: Some(true),
+            source: Some("inline".to_string()),
             ..Extension::default()
         };
         for tool in &self.tools {
