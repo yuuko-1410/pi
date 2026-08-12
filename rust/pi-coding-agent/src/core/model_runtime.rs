@@ -330,6 +330,11 @@ impl ModelRuntime {
     pub fn models_equal(a: Option<&Model>, b: Option<&Model>) -> bool {
         models_are_equal(a, b)
     }
+
+    /// The models.json provider config for a provider (registry facade).
+    pub fn models_json_provider(&self, provider_id: &str) -> Option<&super::model_config::ModelsJsonProvider> {
+        self.config.get_provider(provider_id)
+    }
 }
 
 impl super::model_resolver::ModelRuntimeLike for ModelRuntime {

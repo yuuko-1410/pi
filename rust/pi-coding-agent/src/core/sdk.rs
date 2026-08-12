@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use pi_ai::types::Model;
+use pi_ai::types::{Message, Model};
 use pi_agent_core::agent::{Agent, AgentOptions, MutableAgentState};
 
 use super::agent_session::{AgentSession, AgentSessionConfig};
