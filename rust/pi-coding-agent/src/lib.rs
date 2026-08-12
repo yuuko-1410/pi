@@ -5,6 +5,7 @@
 //! control threads).
 
 pub mod core;
+pub mod modes;
 pub mod config;
 pub mod migrations;
 pub mod utils;
