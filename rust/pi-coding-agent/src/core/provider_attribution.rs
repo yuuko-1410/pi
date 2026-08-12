@@ -153,9 +153,18 @@ mod tests {
         model
     }
 
+    fn unique_agent_dir(name: &str) -> String {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("pi-attrib-{name}-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.to_string_lossy().to_string()
+    }
+
     #[test]
     fn openrouter_attribution_when_telemetry_on() {
-        let settings = super::super::settings_manager::SettingsManager::create("/tmp", "/tmp", true);
+        let mut settings = super::super::settings_manager::SettingsManager::create("/tmp", &unique_agent_dir("on"), true);
+        settings.set_enable_install_telemetry(true);
         let model = model("openrouter", "https://openrouter.ai/api/v1");
         let merged = merge_provider_attribution_headers(&model, &settings, None, &[]).unwrap();
         let keys: Vec<&str> = merged.iter().map(|(key, _)| key.as_str()).collect();
@@ -166,7 +175,7 @@ mod tests {
 
     #[test]
     fn no_headers_when_telemetry_off() {
-        let mut settings = super::super::settings_manager::SettingsManager::create("/tmp", "/tmp", true);
+        let mut settings = super::super::settings_manager::SettingsManager::create("/tmp", &unique_agent_dir("off"), true);
         settings.set_enable_install_telemetry(false);
         let model = model("openrouter", "https://openrouter.ai/api/v1");
         assert!(merge_provider_attribution_headers(&model, &settings, None, &[]).is_none());
@@ -174,7 +183,8 @@ mod tests {
 
     #[test]
     fn opencode_session_header() {
-        let settings = super::super::settings_manager::SettingsManager::create("/tmp", "/tmp", true);
+        let mut settings = super::super::settings_manager::SettingsManager::create("/tmp", &unique_agent_dir("oc"), true);
+        settings.set_enable_install_telemetry(true);
         let model = model("opencode", "https://opencode.ai");
         let merged = merge_provider_attribution_headers(&model, &settings, Some("sess-1"), &[]).unwrap();
         assert!(merged.iter().any(|(key, value)| key == "x-opencode-session" && value.as_deref() == Some("sess-1")));
