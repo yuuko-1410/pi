@@ -3,7 +3,6 @@
 //! (packages/coding-agent/src/core/export-html/), mirroring the JS
 //! getExportTemplateDir behavior for tsx runs.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 
