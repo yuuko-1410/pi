@@ -1020,7 +1020,6 @@ fn wrap_single_line(line: &str, width: f64) -> Vec<String> {
                 wrapped.push(current_line.trim_end().to_string());
             }
             current_line.clear();
-            current_width = 0.0;
             // Break the long token by graphemes.
             let mut fragment = String::new();
             let mut fragment_width = 0.0;
