@@ -30,6 +30,7 @@ pub mod export_html;
 pub mod timings;
 pub mod trust_manager;
 pub mod project_trust;
+pub mod provider_attribution;
 pub mod telemetry;
 pub mod slash_commands;
 pub mod prompt_templates;
