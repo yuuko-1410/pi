@@ -1,3 +1,4 @@
+pub mod branch_cache;
 pub mod branch_tips;
 pub mod lanes;
 pub mod sessions;

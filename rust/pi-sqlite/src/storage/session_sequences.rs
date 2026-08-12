@@ -71,4 +71,5 @@ pub fn delete_sequence(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), 
             SqlPart::Value(session_id.into())
         },
     )
+    .map(|_| ())
 }

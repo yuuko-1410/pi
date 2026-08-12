@@ -1,7 +1,7 @@
 //! Facts table access, port of
 //! `packages/session-backends/sqlite-node/src/sqlite/storage/facts.ts`.
 
-use crate::database::{query_all, query_get, query_run, query_exec, SqliteDatabase};
+use crate::database::{query_all, query_get, query_run, SqliteDatabase};
 use crate::sql::SqlPart;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -118,11 +118,12 @@ pub fn read_fact_rows(
 }
 
 pub fn delete_fact_rows(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), String> {
-    query_exec(
+    query_run(
         db,
         &crate::sql! {
             "DELETE FROM facts WHERE session_id = ",
             SqlPart::Value(session_id.into())
         },
     )
+    .map(|_| ())
 }

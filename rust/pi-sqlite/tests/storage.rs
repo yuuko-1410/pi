@@ -4,6 +4,10 @@ use pi_sqlite::database::{query_run, RusqliteDatabase};
 use pi_sqlite::migrations::apply_migrations;
 use pi_sqlite::sql::SqlPart;
 use pi_sqlite::storage::branch_tips::{insert_branch_tip, read_branch_tip_ids, update_branch_tip};
+use pi_sqlite::storage::branch_cache::{
+    append_entry_to_branch_cache, build_cached_branch, query_cached_branch_rows, read_cached_branch,
+    rebuild_branch_cache, CachedBranchQuery,
+};
 use pi_sqlite::storage::entries::{insert_entry_row, read_entry_rows, NewEntryRow, ReadEntryRowsOptions};
 use pi_sqlite::storage::facts::{append_fact, read_latest_fact, read_latest_label_facts};
 use pi_sqlite::storage::records::{
@@ -278,4 +282,141 @@ fn sessions_insert_read_decode() {
     assert_eq!(rows.len(), 1);
     let rows = read_session_rows(&db, Some("/other")).unwrap();
     assert!(rows.is_empty());
+}
+
+#[test]
+fn branch_cache_build_and_extend() {
+    let db = new_db();
+    // Root entry.
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 1.0,
+            id: "e1".to_string(),
+            parent_id: None,
+            type_: "message".to_string(),
+            timestamp: 1000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+    // Child entry.
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 2.0,
+            id: "e2".to_string(),
+            parent_id: Some("e1".to_string()),
+            type_: "message".to_string(),
+            timestamp: 2000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+
+    // Build cache at the tip.
+    build_cached_branch(&db, "s1", "e2").unwrap();
+    let branch = read_cached_branch(&db, "s1", "e2").unwrap().unwrap();
+    assert_eq!(branch.leaf_seq, 2.0);
+
+    let rows = query_cached_branch_rows(&db, "s1", &branch, &CachedBranchQuery::default()).unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].id, "e2"); // newest first
+
+    // Extend with a new child.
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 3.0,
+            id: "e3".to_string(),
+            parent_id: Some("e2".to_string()),
+            type_: "message".to_string(),
+            timestamp: 3000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+    append_entry_to_branch_cache(&db, "s1", "e3", 3.0, "message", None, Some("e2")).unwrap();
+    let branch = read_cached_branch(&db, "s1", "e3").unwrap().unwrap();
+    let rows = query_cached_branch_rows(&db, "s1", &branch, &CachedBranchQuery::default()).unwrap();
+    assert_eq!(rows.len(), 3);
+}
+
+#[test]
+fn branch_cache_append_without_parent_starts_new_branch() {
+    let db = new_db();
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 1.0,
+            id: "e1".to_string(),
+            parent_id: None,
+            type_: "message".to_string(),
+            timestamp: 1000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+    append_entry_to_branch_cache(&db, "s1", "e1", 1.0, "message", None, None).unwrap();
+    let branch = read_cached_branch(&db, "s1", "e1").unwrap().unwrap();
+    let rows = query_cached_branch_rows(&db, "s1", &branch, &CachedBranchQuery::default()).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, "e1");
+
+    // A second root creates a separate branch.
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 2.0,
+            id: "e2".to_string(),
+            parent_id: None,
+            type_: "message".to_string(),
+            timestamp: 2000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+    append_entry_to_branch_cache(&db, "s1", "e2", 2.0, "message", None, None).unwrap();
+    let branch2 = read_cached_branch(&db, "s1", "e2").unwrap().unwrap();
+    assert_ne!(branch.branch_id, branch2.branch_id);
+}
+
+#[test]
+fn branch_cache_rebuild_from_tips() {
+    let db = new_db();
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 1.0,
+            id: "e1".to_string(),
+            parent_id: None,
+            type_: "message".to_string(),
+            timestamp: 1000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+    insert_entry_row(
+        &db,
+        "s1",
+        &NewEntryRow {
+            seq: 2.0,
+            id: "e2".to_string(),
+            parent_id: Some("e1".to_string()),
+            type_: "message".to_string(),
+            timestamp: 2000.0,
+            payload: "{}".to_string(),
+        },
+    )
+    .unwrap();
+    rebuild_branch_cache(&db, "s1").unwrap();
+    let branch = read_cached_branch(&db, "s1", "e2").unwrap().unwrap();
+    let rows = query_cached_branch_rows(&db, "s1", &branch, &CachedBranchQuery::default()).unwrap();
+    assert_eq!(rows.len(), 2);
 }

@@ -3,7 +3,7 @@
 
 use pi_agent_core::harness::session_types::SessionError;
 
-use crate::database::{query_all, query_get, query_run, query_exec, SqliteDatabase};
+use crate::database::{query_all, query_get, query_run, SqliteDatabase};
 use crate::sql::{join_sql_fragments, SqlPart, SqlQuery};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -92,13 +92,14 @@ pub fn id_exists_in_records(db: &dyn SqliteDatabase, session_id: &str, id: &str)
 }
 
 pub fn delete_record_rows(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), String> {
-    query_exec(
+    query_run(
         db,
         &crate::sql! {
             "DELETE FROM records WHERE session_id = ",
             SqlPart::Value(session_id.into())
         },
     )
+    .map(|_| ())
 }
 
 #[derive(Clone, Debug, Default)]

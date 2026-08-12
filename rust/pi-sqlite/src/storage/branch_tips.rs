@@ -1,7 +1,7 @@
 //! Branch tips table access, port of
 //! `packages/session-backends/sqlite-node/src/sqlite/storage/branch-tips.ts`.
 
-use crate::database::{query_all, query_get, query_run, query_exec, SqliteDatabase};
+use crate::database::{query_all, query_get, query_run, SqliteDatabase};
 use crate::sql::SqlPart;
 
 pub fn read_branch_tip_ids(db: &dyn SqliteDatabase, session_id: &str) -> Result<Vec<String>, String> {
@@ -83,11 +83,12 @@ pub fn update_branch_tip(
 }
 
 pub fn delete_branch_tips(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), String> {
-    query_exec(
+    query_run(
         db,
         &crate::sql! {
             "DELETE FROM branch_tips WHERE session_id = ",
             SqlPart::Value(session_id.into())
         },
     )
+    .map(|_| ())
 }

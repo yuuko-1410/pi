@@ -1,7 +1,7 @@
 //! Entries table access, port of
 //! `packages/session-backends/sqlite-node/src/sqlite/storage/entries.ts`.
 
-use crate::database::{query_all, query_exec, query_get, query_run, SqliteDatabase};
+use crate::database::{query_all, query_get, query_run, SqliteDatabase};
 use crate::sql::SqlPart;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -145,11 +145,12 @@ pub fn id_exists_in_entries(db: &dyn SqliteDatabase, session_id: &str, id: &str)
 }
 
 pub fn delete_entry_rows(db: &dyn SqliteDatabase, session_id: &str) -> Result<(), String> {
-    query_exec(
+    query_run(
         db,
         &crate::sql! {
             "DELETE FROM entries WHERE session_id = ",
             SqlPart::Value(session_id.into())
         },
     )
+    .map(|_| ())
 }
