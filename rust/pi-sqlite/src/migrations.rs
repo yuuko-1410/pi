@@ -1,7 +1,7 @@
 //! Schema migrations, port of
 //! `packages/session-backends/sqlite-node/src/sqlite/migrations.ts`.
 
-use crate::database::{query_all, query_exec, query_run, SqliteDatabase};
+use crate::database::{query_all, query_run, SqliteDatabase};
 use crate::sql::SqlValue;
 
 pub const INITIAL_SCHEMA_SQL: &str = include_str!("migrations/001_initial.sql");
