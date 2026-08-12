@@ -207,6 +207,16 @@ impl AgentSession {
         self.agent.lock().unwrap().state()
     }
 
+    /// Accessor for the runtime owner (session replacement flows).
+    pub fn agent(&self) -> Arc<Mutex<Agent>> {
+        self.agent.clone()
+    }
+
+    /// Accessor for the runtime owner (session replacement flows).
+    pub fn session_manager(&self) -> std::sync::MutexGuard<'_, SessionManager> {
+        self.session_manager.lock().unwrap()
+    }
+
     pub fn model(&self) -> Option<Model> {
         let model = self.agent.lock().unwrap().state().model;
         if model.provider.is_empty() || model.provider == "unknown" {
