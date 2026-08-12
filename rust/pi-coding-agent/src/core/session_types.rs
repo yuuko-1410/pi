@@ -1345,6 +1345,11 @@ pub fn build_session_context<'a>(
     }
 }
 
+/// JSON.stringify of one file entry.
+pub fn file_entry_to_json_string(entry: &FileEntry) -> String {
+    json_stringify(&file_entry_to_json(entry))
+}
+
 /// Defensive copy of the session file as a JSON string (used by tests).
 pub fn file_entries_to_jsonl(entries: &[FileEntry]) -> String {
     entries
