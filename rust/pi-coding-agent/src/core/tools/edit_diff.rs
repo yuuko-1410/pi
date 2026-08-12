@@ -5,8 +5,6 @@
 //! jsdiff line diff is a hand-written LCS line diff (same hunk semantics for
 //! the display-oriented output; unified patches use the same algorithm).
 
-use std::collections::HashMap;
-
 /// Detect the dominant line ending of content.
 pub fn detect_line_ending(content: &str) -> &'static str {
     let crlf_index = content.find("\r\n");
@@ -42,7 +40,7 @@ pub fn normalize_for_fuzzy_match(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     // Per-line trailing whitespace strip + character replacements.
     let mut current_line = String::new();
-    let mut push_line = |line: &str, result: &mut String| {
+    let push_line = |line: &str, result: &mut String| {
         let trimmed = line.trim_end();
         result.push_str(trimmed);
         result.push('\n');
@@ -99,7 +97,7 @@ struct LineSpan {
 }
 
 #[derive(Clone, Debug)]
-struct MatchedEdit {
+pub struct MatchedEdit {
     edit_index: usize,
     match_index: usize,
     match_length: usize,
@@ -441,7 +439,7 @@ pub fn diff_lines(old_content: &str, new_content: &str) -> Vec<DiffPart> {
     let mut removed: Vec<String> = Vec::new();
     let mut unchanged: Vec<String> = Vec::new();
 
-    let mut flush_change = |added: &mut Vec<String>, removed: &mut Vec<String>, unchanged: &mut Vec<String>, parts: &mut Vec<DiffPart>| {
+    let flush_change = |added: &mut Vec<String>, removed: &mut Vec<String>, unchanged: &mut Vec<String>, parts: &mut Vec<DiffPart>| {
         if !unchanged.is_empty() {
             parts.push(DiffPart::Unchanged(std::mem::take(unchanged)));
         }
