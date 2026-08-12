@@ -295,6 +295,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pi-coding-agent"
+version = "0.84.1"
+dependencies = [
+ "pi-agent-core",
+ "pi-ai",
+ "pi-protocol",
+ "pi-telemetry",
+]
+
+[[package]]
 name = "pi-evals"
 version = "0.84.1"
 
