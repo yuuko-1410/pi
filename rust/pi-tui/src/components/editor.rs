@@ -12,6 +12,8 @@
 //! the editor and the OSC-52 clipboard integration are not ported.
 
 use std::sync::Arc;
+#[cfg(test)]
+use std::sync::Mutex;
 
 use crate::autocomplete::{AutocompleteItem, CombinedAutocompleteProvider};
 use crate::keybindings::{get_keybindings, KeybindingsManager};
