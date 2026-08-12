@@ -183,8 +183,8 @@ mod tests {
     #[test]
     fn tracked_children_cleared() {
         track_detached_child_pid(999999);
-        assert!(!TRACKED_DETACHED_CHILD_PIDS.lock().unwrap().is_empty());
+        assert!(TRACKED_DETACHED_CHILD_PIDS.lock().unwrap().contains(&999999));
         untrack_detached_child_pid(999999);
-        assert!(TRACKED_DETACHED_CHILD_PIDS.lock().unwrap().is_empty());
+        assert!(!TRACKED_DETACHED_CHILD_PIDS.lock().unwrap().contains(&999999));
     }
 }
