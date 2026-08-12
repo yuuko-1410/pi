@@ -240,6 +240,21 @@ pub fn resolve_config_value(config: &str, env: Option<&HashMap<String, String>>)
     }
 }
 
+/// Resolve a config value with a ProviderEnv-style env list.
+pub fn resolve_config_value_with_env_like(
+    config: &str,
+    env: Option<&Vec<(String, String)>>,
+) -> Option<String> {
+    let env_map = env.map(|entries| {
+        let mut map = HashMap::new();
+        for (key, value) in entries {
+            map.insert(key.clone(), value.clone());
+        }
+        map
+    });
+    resolve_config_value(config, env_map.as_ref())
+}
+
 /// Resolve without the command-result cache (used by resolve-or-throw).
 pub fn resolve_config_value_uncached(config: &str, env: Option<&HashMap<String, String>>) -> Option<String> {
     match parse_config_value_reference(config) {

@@ -22,6 +22,7 @@ pub mod footer_data_provider;
 pub mod compaction;
 pub mod model_resolver;
 pub mod provider_composer;
+pub mod model_runtime;
 pub mod timings;
 pub mod prompt_templates;
 pub mod system_prompt;
