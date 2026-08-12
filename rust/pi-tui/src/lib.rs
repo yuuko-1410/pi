@@ -15,6 +15,7 @@ pub mod word_navigation;
 pub mod native_modifiers;
 pub mod stdin_buffer;
 pub mod terminal;
+pub mod tui_alt_screen;
 pub mod tui_main_screen;
 pub mod terminal_colors;
 pub mod terminal_image;
