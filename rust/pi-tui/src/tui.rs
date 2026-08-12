@@ -6,9 +6,8 @@
 
 use std::sync::Arc;
 
-use crate::utils::{
-    extract_segments, is_image_line_placeholder, slice_by_column, slice_with_width, visible_width,
-};
+use crate::terminal_image::is_image_line;
+use crate::utils::{extract_segments, slice_by_column, slice_with_width, visible_width};
 
 /// Cursor position marker — APC sequence that terminals ignore. Components
 /// emit this at the cursor position when focused.
@@ -83,7 +82,7 @@ pub fn composite_tui_line(
     overlay_width: f64,
     total_width: f64,
 ) -> String {
-    if is_image_line_placeholder(base_line) {
+    if is_image_line(base_line) {
         return base_line.to_string();
     }
 
