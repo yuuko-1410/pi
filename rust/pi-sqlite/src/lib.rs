@@ -4,3 +4,4 @@
 pub mod database;
 pub mod migrations;
 pub mod sql;
+pub mod storage;

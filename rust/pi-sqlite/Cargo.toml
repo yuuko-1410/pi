@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 rusqlite = { version = "0.32", features = ["bundled"] }
+pi-agent-core = { path = "../pi-agent-core" }
+pi-ai = { path = "../pi-ai" }
