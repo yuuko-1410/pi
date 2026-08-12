@@ -209,6 +209,8 @@ pub struct PromptTemplate {
     pub name: String,
     pub description: Option<String>,
     pub content: String,
+    /// Absolute path of the template file (JS filePath).
+    pub file_path: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -330,6 +332,7 @@ fn load_template_from_file(
             name,
             description,
             content: body,
+            file_path: file_path.to_string(),
         }),
         diagnostics,
     )
@@ -573,6 +576,7 @@ mod tests {
             name: "t".to_string(),
             description: Some("d".to_string()),
             content: "Do $1 with $ARGUMENTS".to_string(),
+            file_path: "/tmp/t.md".to_string(),
         };
         assert_eq!(
             format_prompt_template_invocation(&template, &["X".to_string(), "Y".to_string()]),
