@@ -35,7 +35,7 @@ pub struct ScrollView {
     follow_end: bool,
     pub primary: bool,
     pub overscroll: String,
-    scrollbar_style: Arc<dyn Fn(&str) -> String + Send + Sync>,
+    pub scrollbar_style: Arc<dyn Fn(&str) -> String + Send + Sync>,
     current_scrollbar: String,
     scrollbar_hide_delay_ms: f64,
     current_scroll_top: f64,
