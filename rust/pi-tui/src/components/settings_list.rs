@@ -66,10 +66,8 @@ pub struct SettingsList {
     submenu_component: Option<Arc<dyn Fn(usize) -> Vec<String> + Send + Sync>>,
     submenu_item_index: Option<usize>,
     submenu_done: Option<Arc<AtomicBool>>,
-    #[allow(non_snake_case)]
-    pub onChange: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
-    #[allow(non_snake_case)]
-    pub onCancel: Option<Arc<dyn Fn() + Send + Sync>>,
+    pub on_change: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
+    pub on_cancel: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 
 impl SettingsList {
@@ -90,8 +88,8 @@ impl SettingsList {
             submenu_component: None,
             submenu_item_index: None,
             submenu_done: None,
-            onChange: None,
-            onCancel: None,
+            on_change: None,
+            on_cancel: None,
         }
     }
 
@@ -126,13 +124,13 @@ impl SettingsList {
 
         if let Some(submenu) = item.submenu {
             self.submenu_item_index = Some(self.selected_index);
-            let onChange = self.onChange.clone();
+            let on_change = self.on_change.clone();
             let done_flag = Arc::new(AtomicBool::new(false));
             let done = {
                 let flag = done_flag.clone();
                 Arc::new(move |selected_value: Option<&str>| {
                     if let Some(selected_value) = selected_value {
-                        if let Some(on_change) = &onChange {
+                        if let Some(on_change) = &on_change {
                             on_change(&item.id, selected_value);
                         }
                     }
@@ -149,7 +147,7 @@ impl SettingsList {
                 if let Some(entry) = self.items.iter_mut().find(|entry| entry.id == item.id) {
                     entry.current_value = new_value.clone();
                 }
-                if let Some(on_change) = &self.onChange {
+                if let Some(on_change) = &self.on_change {
                     on_change(&item.id, &new_value);
                 }
             }
@@ -174,7 +172,7 @@ impl SettingsList {
         if self.submenu_component.is_some() {
             // ponytail: submenu input is not delegated (the JS version
             // forwards to the submenu component); Escape closes the submenu.
-            if let Some(on_cancel) = &self.onCancel {
+            if let Some(on_cancel) = &self.on_cancel {
                 let _ = on_cancel;
             }
             if keybindings.matches(data, "tui.select.cancel") {
@@ -207,7 +205,7 @@ impl SettingsList {
         {
             self.activate_item();
         } else if keybindings.matches(data, "tui.select.cancel") {
-            if let Some(on_cancel) = &self.onCancel {
+            if let Some(on_cancel) = &self.on_cancel {
                 on_cancel();
             }
         } else if self.search_enabled {
@@ -375,7 +373,7 @@ mod tests {
         let mut list = SettingsList::new(items(), 5, theme(), SettingsListOptions::default());
         let changed = Arc::new(std::sync::Mutex::new(Vec::new()));
         let changed_clone = changed.clone();
-        list.onChange = Some(Arc::new(move |id, value| {
+        list.on_change = Some(Arc::new(move |id, value| {
             changed_clone.lock().unwrap().push(format!("{id}={value}"));
         }));
         let keybindings = KeybindingsManager::new(crate::keybindings::tui_keybindings());
@@ -390,7 +388,7 @@ mod tests {
         let mut list = SettingsList::new(items(), 5, theme(), SettingsListOptions::default());
         let cancelled = Arc::new(std::sync::Mutex::new(false));
         let cancelled_clone = cancelled.clone();
-        list.onCancel = Some(Arc::new(move || {
+        list.on_cancel = Some(Arc::new(move || {
             *cancelled_clone.lock().unwrap() = true;
         }));
         let keybindings = KeybindingsManager::new(crate::keybindings::tui_keybindings());
