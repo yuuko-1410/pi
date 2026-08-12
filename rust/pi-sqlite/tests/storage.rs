@@ -9,6 +9,14 @@ use pi_sqlite::storage::facts::{append_fact, read_latest_fact, read_latest_label
 use pi_sqlite::storage::records::{
     append_record_row, read_open_operation_rows, read_record_rows, NewRecordRow, ReadRecordRowsOptions,
 };
+use pi_sqlite::storage::lanes::{
+    create_initial_lane, create_lane, finish_lane_operation, read_lane_move_rows, read_lanes,
+    start_lane_operation,
+};
+use pi_sqlite::storage::sessions::{
+    decode_session_metadata, insert_session_row, read_session_row, read_session_rows, session_exists,
+    NewSessionRow,
+};
 use pi_sqlite::storage::session_sequences::{advance_sequence, create_sequence, get_next_sequence};
 use pi_sqlite::storage::session_stats::{add_usage_to_stats, create_stats, read_stats};
 use pi_sqlite::storage::writer_leases::{acquire_writer_lease, release_writer_lease, renew_writer_lease};
@@ -200,4 +208,74 @@ fn branch_tips_roundtrip() {
     assert!(!update_branch_tip(&db, "s1", "branch-a", "tip-1", "tip-4").unwrap());
     let tips = read_branch_tip_ids(&db, "s1").unwrap();
     assert_eq!(tips, vec!["tip-2".to_string(), "tip-3".to_string()]);
+}
+
+#[test]
+fn lanes_create_move_operations() {
+    let db = new_db();
+    create_initial_lane(&db, "s1", "main", None).unwrap();
+    let lanes = read_lanes(&db, "s1").unwrap();
+    assert_eq!(lanes.len(), 1);
+    assert_eq!(lanes[0].lane, "main");
+
+    // A lane pointing at a missing entry is a storage error.
+    create_lane(&db, "s1", 2.0, "broken", Some("missing-id")).unwrap();
+    let error = read_lanes(&db, "s1").unwrap_err();
+    assert_eq!(error.code, "storage");
+
+    // Open operation lifecycle.
+    start_lane_operation(&db, "s1", "main", "run-1").unwrap();
+    let error = start_lane_operation(&db, "s1", "main", "run-2").unwrap_err();
+    assert!(error.message.contains("already has an open operation"));
+    finish_lane_operation(&db, "s1", "main", "run-1").unwrap();
+    start_lane_operation(&db, "s1", "main", "run-2").unwrap();
+
+    // Lane moves are recorded.
+    // createInitialLane records no move; only createLane does.
+    let moves = read_lane_move_rows(&db, "s1", None, None).unwrap();
+    assert_eq!(moves.len(), 1);
+    assert_eq!(moves[0].lane, "broken");
+    assert_eq!(moves[0].seq, 2.0);
+}
+
+#[test]
+fn sessions_insert_read_decode() {
+    let db = new_db();
+    insert_session_row(
+        &db,
+        &NewSessionRow {
+            id: "s1".to_string(),
+            created_at: 1000.0,
+            cwd: "/tmp".to_string(),
+            parent_session_id: None,
+            metadata: Some(pi_protocol::cbor::Value::Map(vec![(
+                "app".to_string(),
+                pi_protocol::cbor::Value::String("test".to_string()),
+            )])),
+        },
+    )
+    .unwrap();
+    assert!(session_exists(&db, "s1").unwrap());
+    assert!(!session_exists(&db, "nope").unwrap());
+
+    let row = read_session_row(&db, "s1").unwrap().unwrap();
+    assert_eq!(row.cwd, "/tmp");
+    let decoded = decode_session_metadata(&row, "/db/pi.db").unwrap();
+    assert_eq!(decoded.id, "s1");
+    assert_eq!(decoded.path, "/db/pi.db");
+    assert!(decoded.metadata.is_some());
+
+    // Session name comes from the latest 'name' fact.
+    append_fact(&db, "s1", 1.0, "name", None, Some("\"first\"")).unwrap();
+    append_fact(&db, "s1", 2.0, "name", None, Some("\"second\"")).unwrap();
+    let row = read_session_row(&db, "s1").unwrap().unwrap();
+    assert!(row.has_session_name);
+    let decoded = decode_session_metadata(&row, "/db/pi.db").unwrap();
+    assert_eq!(decoded.name.as_deref(), Some("second"));
+
+    // cwd-filtered listing.
+    let rows = read_session_rows(&db, Some("/tmp")).unwrap();
+    assert_eq!(rows.len(), 1);
+    let rows = read_session_rows(&db, Some("/other")).unwrap();
+    assert!(rows.is_empty());
 }

@@ -1,4 +1,6 @@
 pub mod branch_tips;
+pub mod lanes;
+pub mod sessions;
 pub mod entries;
 pub mod facts;
 pub mod records;

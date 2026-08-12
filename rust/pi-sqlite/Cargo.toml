@@ -7,3 +7,4 @@ edition = "2021"
 rusqlite = { version = "0.32", features = ["bundled"] }
 pi-agent-core = { path = "../pi-agent-core" }
 pi-ai = { path = "../pi-ai" }
+pi-protocol = { path = "../pi-protocol" }
