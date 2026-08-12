@@ -938,6 +938,12 @@ pub fn is_punctuation_char(char: char) -> bool {
     )
 }
 
+/// Placeholder for the Kitty graphics protocol image line check (ported with
+/// terminal-image.ts).
+pub fn is_image_line_placeholder(line: &str) -> bool {
+    line.starts_with("\x1b_G")
+}
+
 fn is_printable_ascii(str: &str) -> bool {
     str.chars().all(|c| {
         let code = c as u32;
