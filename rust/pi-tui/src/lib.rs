@@ -1,6 +1,7 @@
 //! Terminal UI library, port of `packages/tui`.
 
 pub mod fuzzy;
+pub mod keybindings;
 pub mod keys;
 pub mod kill_ring;
 pub mod undo_stack;
