@@ -34,9 +34,11 @@ impl EventBus {
     where
         F: Fn(&dyn std::any::Any) + Send + Sync + 'static,
     {
+        let channel_name = channel.to_string();
+        let error_channel = channel_name.clone();
         let wrapped: Arc<dyn Fn(&dyn std::any::Any) + Send + Sync> = Arc::new(move |data| {
             if let Err(error) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| handler(data))) {
-                eprintln!("Event handler error ({}): {:?}", channel, error);
+                eprintln!("Event handler error ({}): {:?}", error_channel, error);
             }
         });
         self.inner
@@ -48,13 +50,12 @@ impl EventBus {
             .push(wrapped.clone());
         // Unsubscribe closure mirrors JS's returned off() function.
         let inner = self.inner.clone();
-        let channel = channel.to_string();
         Arc::new(move || {
             inner
                 .lock()
                 .unwrap()
                 .handlers
-                .entry(channel.clone())
+                .entry(channel_name.clone())
                 .or_default()
                 .retain(|h| !Arc::ptr_eq(h, &wrapped));
         })

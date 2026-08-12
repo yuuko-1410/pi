@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use pi_ai::utils::json::{json_stringify, parse_json_with_repair};
+use pi_ai::utils::json::parse_json_with_repair;
 use pi_protocol::Value;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -27,8 +27,11 @@ pub fn read_pi_manifest(package_json_path: &str) -> Option<PiManifest> {
     if !is_object(&pkg) {
         return None;
     }
-    let pi = pkg.as_map()?.iter().find(|(k, _)| k == "pi")?.1;
-    if !is_object(pi) {
+    let pi = match pkg.as_map()?.iter().find(|(k, _)| k == "pi") {
+        Some((_, value)) => value,
+        None => return None,
+    };
+    if !matches!(pi, Value::Map(_)) {
         return None;
     }
 
@@ -59,8 +62,11 @@ pub fn read_pi_manifest(package_json_path: &str) -> Option<PiManifest> {
 mod tests {
     use super::*;
 
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     fn write_temp(content: &str) -> String {
-        let path = std::env::temp_dir().join(format!("pi-manifest-{}.json", std::process::id()));
+        let counter = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("pi-manifest-{}-{counter}.json", std::process::id()));
         std::fs::write(&path, content).unwrap();
         path.to_string_lossy().to_string()
     }
@@ -72,7 +78,6 @@ mod tests {
         assert_eq!(manifest.extensions.as_deref(), Some(&["a".to_string(), "b".to_string()][..]));
         assert_eq!(manifest.skills, None);
         assert_eq!(manifest.themes.as_deref(), Some(&["t".to_string()][..]));
-        let _ = json_stringify(&Value::Null);
     }
 
     #[test]

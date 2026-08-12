@@ -4,4 +4,6 @@
 //! become blocking calls; AbortSignal parameters are omitted (callers
 //! control threads).
 
+pub mod core;
+pub mod config;
 pub mod utils;

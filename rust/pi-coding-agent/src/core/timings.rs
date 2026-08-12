@@ -34,10 +34,12 @@ pub fn reset_timings(namespace: &str) {
         return;
     }
     let mut state = TIMING_STATE.lock().unwrap();
-    let state = state.get_or_insert_with(|| TimingState {
-        namespaces: HashMap::new(),
-    });
-    state.namespaces.insert(
+    if state.is_none() {
+        *state = Some(TimingState {
+            namespaces: HashMap::new(),
+        });
+    }
+    state.as_mut().unwrap().namespaces.insert(
         namespace.to_string(),
         TimingNamespace {
             timings: Vec::new(),
@@ -51,16 +53,18 @@ pub fn time(label: &str, namespace: &str) {
         return;
     }
     let mut state = TIMING_STATE.lock().unwrap();
-    let state = state.get_or_insert_with(|| TimingState {
-        namespaces: HashMap::new(),
-    });
-    if !state.namespaces.contains_key(namespace) {
+    if state.is_none() {
+        *state = Some(TimingState {
+            namespaces: HashMap::new(),
+        });
+    }
+    if !state.as_ref().unwrap().namespaces.contains_key(namespace) {
         drop(state);
         reset_timings(namespace);
         state = TIMING_STATE.lock().unwrap();
     }
     let now = now_ms();
-    if let Some(ns) = state.namespaces.get_mut(namespace) {
+    if let Some(ns) = state.as_mut().unwrap().namespaces.get_mut(namespace) {
         ns.timings.push((label.to_string(), now - ns.last_time));
         ns.last_time = now;
     }

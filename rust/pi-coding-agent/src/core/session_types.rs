@@ -41,7 +41,7 @@ pub struct SessionEntryBase {
 /// custom, branchSummary, compactionSummary) map to their structs; unknown
 /// roles are preserved verbatim like the JS parser does (session files are
 /// parsed without validation).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum SessionMessage {
     Llm(Message),
     Bash(BashExecutionMessage),
@@ -49,6 +49,17 @@ pub enum SessionMessage {
     BranchSummary(BranchSummaryMessage),
     CompactionSummary(CompactionSummaryMessage),
     Unknown(Value),
+}
+
+impl PartialEq for SessionMessage {
+    fn eq(&self, other: &Self) -> bool {
+        use SessionMessage::*;
+        match (self, other) {
+            (Llm(a), Llm(b)) => a == b,
+            (Unknown(a), Unknown(b)) => a == b,
+            _ => std::mem::discriminant(self) == std::mem::discriminant(other),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -351,7 +362,7 @@ fn content_to_json(content: &pi_ai::types::Content) -> Value {
             kv("data", str(&image.data)),
             kv("mimeType", str(&image.mime_type)),
         ]),
-        other => Value::Map(vec![kv("type", str("unknown"))]),
+        _other => Value::Map(vec![kv("type", str("unknown"))]),
     }
 }
 
@@ -457,7 +468,7 @@ pub fn usage_to_json(usage: &Usage) -> Value {
 }
 
 fn usage_from_entries(entries: &[(String, Value)]) -> Option<Usage> {
-    let usage_entries = entries.iter().find(|(k, _)| k == "usage")?.as_map()?;
+    let usage_entries = entries.iter().find(|(k, _)| k == "usage")?.1.as_map()?;
     fn number(entries: &[(String, Value)], key: &str) -> f64 {
         entries
             .iter()
@@ -614,15 +625,15 @@ pub fn entry_to_json(entry: &SessionEntry) -> Value {
 pub fn file_entry_to_json(file_entry: &FileEntry) -> Value {
     match file_entry {
         FileEntry::Header(header) => {
-            let mut entries = vec![
-                kv("type", str("session")),
-                kv("id", str(&header.id)),
-                kv("timestamp", str(&header.timestamp)),
-                kv("cwd", str(&header.cwd)),
-            ];
+            // Construction order matches JS newSession(): type, version, id,
+            // timestamp, cwd, parentSession.
+            let mut entries = vec![kv("type", str("session"))];
             if let Some(version) = header.version {
                 entries.push(kv("version", Value::Number(version as f64)));
             }
+            entries.push(kv("id", str(&header.id)));
+            entries.push(kv("timestamp", str(&header.timestamp)));
+            entries.push(kv("cwd", str(&header.cwd)));
             if let Some(parent_session) = &header.parent_session {
                 entries.push(kv("parentSession", str(parent_session)));
             }
@@ -991,36 +1002,47 @@ fn migrate_v1_to_v2(entries: &mut [FileEntry]) {
     let mut prev_id: Option<String> = None;
 
     for i in 0..entries.len() {
+        // Resolve the v1 firstKeptEntryIndex target id BEFORE mutating this
+        // slot. The index references an earlier entry that has already been
+        // migrated in this pass (matching JS in-place iteration).
+        let target_id = match &entries[i] {
+            FileEntry::Entry(SessionEntry::Compaction {
+                first_kept_entry_index: Some(index),
+                ..
+            }) => {
+                let index = *index as usize;
+                entries.get(index).and_then(|entry| match entry {
+                    FileEntry::Entry(entry) => Some(entry.id().to_string()),
+                    _ => None,
+                })
+            }
+            _ => None,
+        };
         match &mut entries[i] {
             FileEntry::Header(header) => {
                 header.version = Some(2);
             }
-            FileEntry::Entry(entry) => {
+            FileEntry::Entry(entry_slot) => {
                 let id = generate_id(&|candidate| ids.contains(candidate));
                 ids.insert(id.clone());
                 let parent_id = prev_id.clone();
                 prev_id = Some(id.clone());
-                let mut entry = entry.clone();
+                let mut entry = entry_slot.clone();
                 entry = entry.with_parent(parent_id);
                 entry = set_entry_id(entry, id.clone());
 
-                // Convert firstKeptEntryIndex to firstKeptEntryId for compaction.
-                // The index is into the full entries array, header included.
                 if let SessionEntry::Compaction {
                     first_kept_entry_id,
                     first_kept_entry_index,
                     ..
                 } = &mut entry
                 {
-                    if let Some(index) = *first_kept_entry_index {
-                        let index = index as usize;
-                        if let Some(FileEntry::Entry(target)) = entries.get(index) {
-                            *first_kept_entry_id = target.id().to_string();
-                        }
-                        *first_kept_entry_index = None;
+                    if let Some(target_id) = target_id {
+                        *first_kept_entry_id = target_id;
                     }
+                    *first_kept_entry_index = None;
                 }
-                *entry = entry;
+                *entry_slot = entry;
             }
         }
     }
@@ -1163,7 +1185,7 @@ pub fn build_session_path<'a>(
     if let Some(leaf_id) = leaf_id {
         leaf = by_id.get(leaf_id).copied();
     }
-    leaf = leaf.or_else(|| entries.last().copied());
+    leaf = leaf.or_else(|| entries.last());
     let Some(mut current) = leaf else {
         return Vec::new();
     };
@@ -1207,7 +1229,7 @@ fn get_session_context_settings(path: &[&SessionEntry]) -> (String, Option<(Stri
 pub fn session_entry_to_context_messages(
     entry: &SessionEntry,
 ) -> Vec<pi_agent_core::types::AgentMessage> {
-    use crate::session_messages::UnknownMessage;
+    use crate::core::session_messages::UnknownMessage;
     use pi_agent_core::types::AgentMessage;
     match entry {
         SessionEntry::Message { message, .. } => match message {
@@ -1339,8 +1361,10 @@ mod tests {
     fn entry_line(type_: &str) -> String {
         match type_ {
             "message" => r#"{"type":"message","id":"a1","parentId":null,"timestamp":"2024-01-01T00:00:00.000Z","message":{"role":"user","content":"hi","timestamp":1}}"#.to_string(),
-            "compaction" => r#"{"type":"compaction","id":"c1","parentId":"a1","timestamp":"2024-01-01T00:00:00.000Z","summary":"s","firstKeptEntryId":"a2","tokensBefore":100}"#.to_string(),
-            _ => format!(r#"{{"type":"{type_}","id":"x1","parentId":null,"timestamp":"2024-01-01T00:00:00.000Z"}}"#),
+            "compaction" => r#"{"type":"compaction","id":"c1","parentId":"m1","timestamp":"2024-01-01T00:00:00.000Z","summary":"s","firstKeptEntryId":"m1","tokensBefore":100}"#.to_string(),
+            "message2" => r#"{"type":"message","id":"m1","parentId":"a1","timestamp":"2024-01-01T00:00:00.000Z","message":{"role":"user","content":"mid","timestamp":2}}"#.to_string(),
+            "message3" => r#"{"type":"message","id":"m2","parentId":"c1","timestamp":"2024-01-01T00:00:00.000Z","message":{"role":"user","content":"after","timestamp":3}}"#.to_string(),
+            _ => format!(r#"{{"type":"{type_}","id":"x1","parentId":"m1","timestamp":"2024-01-01T00:00:00.000Z"}}"#),
         }
     }
 
@@ -1373,7 +1397,7 @@ mod tests {
             FileEntry::Entry(SessionEntry::Compaction { summary, tokens_before, first_kept_entry_id, .. }) => {
                 assert_eq!(summary, "s");
                 assert_eq!(*tokens_before, 100.0);
-                assert_eq!(first_kept_entry_id, "a2");
+                assert_eq!(first_kept_entry_id, "m1");
             }
             _ => panic!("expected compaction"),
         }
@@ -1417,7 +1441,7 @@ mod tests {
             session_line(),
             entry_line("message"),
             entry_line("thinking_level_change"),
-            entry_line("message"),
+            entry_line("message2"),
             entry_line("label")
         );
         let entries = parse_session_entries(&content);
@@ -1437,12 +1461,14 @@ mod tests {
 
     #[test]
     fn compaction_trims_older_entries() {
-        let mut entries = parse_session_entries(&format!(
-            "{}\n{}\n{}\n{}\n",
+        // Chain: a1 -> m1 -> c1 -> m2. Compaction firstKeptEntryId = m1.
+        let entries = parse_session_entries(&format!(
+            "{}\n{}\n{}\n{}\n{}\n",
             session_line(),
             entry_line("message"),
+            entry_line("message2"),
             entry_line("compaction"),
-            entry_line("message"),
+            entry_line("message3"),
         ))
         .into_iter()
         .filter_map(|entry| match entry {
@@ -1450,35 +1476,26 @@ mod tests {
             _ => None,
         })
         .collect::<Vec<_>>();
-        // firstKeptEntryId references "a2" which doesn't exist in this small
-        // fixture; the compaction entry itself plus everything after remains.
         let by_id = build_entry_index(&entries);
+        // firstKeptEntryId = m1: keeps compaction + m1 + m2.
         let context = build_context_entries(&entries, None, &by_id);
-        assert_eq!(context.len(), 2);
+        assert_eq!(context.len(), 3);
         assert!(matches!(context[0], SessionEntry::Compaction { .. }));
         assert!(matches!(context[1], SessionEntry::Message { .. }));
+        assert_eq!(context[1].id(), "m1");
+        assert_eq!(context[2].id(), "m2");
 
-        // A compaction with a valid firstKeptEntryId keeps entries from there.
-        let mut entries2 = parse_session_entries(&format!(
-            "{}\n{}\n{}\n{}\n",
-            session_line(),
-            entry_line("message"),
-            entry_line("compaction"),
-            entry_line("message"),
-        ))
-        .into_iter()
-        .filter_map(|entry| match entry {
-            FileEntry::Entry(entry) => Some(entry),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-        if let SessionEntry::Compaction { first_kept_entry_id, .. } = &mut entries2[1] {
-            *first_kept_entry_id = "a1".to_string();
+        // firstKeptEntryId pointing at an absent id keeps compaction + rest.
+        let mut entries2 = entries.clone();
+        if let SessionEntry::Compaction { first_kept_entry_id, .. } = &mut entries2[2] {
+            *first_kept_entry_id = "nope".to_string();
         }
         let by_id = build_entry_index(&entries2);
         let context = build_context_entries(&entries2, None, &by_id);
-        assert_eq!(context.len(), 3);
-        let _ = &mut entries;
+        assert_eq!(context.len(), 2);
+        assert!(matches!(context[0], SessionEntry::Compaction { .. }));
+        assert!(matches!(context[1], SessionEntry::Message { .. }));
+        assert_eq!(context[1].id(), "m2");
     }
 
     #[test]

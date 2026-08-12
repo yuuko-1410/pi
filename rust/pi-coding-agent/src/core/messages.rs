@@ -59,6 +59,16 @@ pub enum ContentOrText {
     Blocks(Vec<Content>),
 }
 
+impl PartialEq for ContentOrText {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ContentOrText::Text(a), ContentOrText::Text(b)) => a == b,
+            (ContentOrText::Blocks(a), ContentOrText::Blocks(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct BranchSummaryMessage {
     pub summary: String,
@@ -137,7 +147,7 @@ fn parse_iso_timestamp(value: &str) -> Option<f64> {
     };
     let days = days_from_civil(year, month, day)?;
     Some(
-        (days as f64 - 719_163.0) * 86_400_000.0
+        days as f64 * 86_400_000.0
             + (hour as f64 * 3_600_000.0 + minute as f64 * 60_000.0 + second as f64 * 1_000.0 + millis as f64),
     )
 }
@@ -149,7 +159,7 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> Option<i64> {
         return None;
     }
     let year = if month <= 2 { year - 1 } else { year };
-    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let era = (if year >= 0 { year } else { year - 399 }) / 400;
     let yoe = year - era * 400;
     let doy = (153 * (if month > 2 { month - 3 } else { month + 9 }) + 2) / 5 + day - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
