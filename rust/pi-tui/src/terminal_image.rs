@@ -412,3 +412,280 @@ mod tests {
         assert_eq!(base64_encode_utf8("ab"), "YWI=");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Capabilities and dimension parsing
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TerminalCapabilities {
+    pub images: Option<String>,
+    pub true_color: bool,
+    pub hyperlinks: bool,
+}
+
+static CACHED_CAPABILITIES: Mutex<Option<TerminalCapabilities>> = Mutex::new(None);
+
+pub fn detect_capabilities() -> TerminalCapabilities {
+    let tmux = std::env::var("TMUX").is_ok();
+    let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+    let kitty = term_program == "kitty" || term_program == "ghostty";
+    TerminalCapabilities {
+        // ponytail: image support is guessed from TERM_PROGRAM; the JS version
+        // queries the terminal with escape sequences.
+        images: if kitty { Some("kitty".to_string()) } else { None },
+        true_color: std::env::var("COLORTERM").map(|v| v.contains("truecolor") || v.contains("24bit")).unwrap_or(false),
+        hyperlinks: !tmux,
+    }
+}
+
+pub fn get_capabilities() -> TerminalCapabilities {
+    let mut cache = CACHED_CAPABILITIES.lock().unwrap();
+    cache
+        .get_or_insert_with(detect_capabilities)
+        .clone()
+}
+
+pub fn reset_capabilities_cache() {
+    *CACHED_CAPABILITIES.lock().unwrap() = None;
+}
+
+pub fn set_capabilities(caps: TerminalCapabilities) {
+    *CACHED_CAPABILITIES.lock().unwrap() = Some(caps);
+}
+
+fn base64_decode(data: &str) -> Vec<u8> {
+    // Minimal base64 decoder (standard alphabet).
+    let mut out = Vec::new();
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+    for byte in data.bytes() {
+        let value = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => continue,
+        };
+        buf = (buf << 6) | value as u32;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+        }
+    }
+    out
+}
+
+fn read_u16_be(bytes: &[u8], offset: usize) -> u16 {
+    ((bytes[offset] as u16) << 8) | bytes[offset + 1] as u16
+}
+
+fn read_u32_be(bytes: &[u8], offset: usize) -> u32 {
+    ((bytes[offset] as u32) << 24)
+        | ((bytes[offset + 1] as u32) << 16)
+        | ((bytes[offset + 2] as u32) << 8)
+        | bytes[offset + 3] as u32
+}
+
+pub fn get_png_dimensions(base64_data: &str) -> Option<ImageDimensions> {
+    let buffer = base64_decode(base64_data);
+    if buffer.len() < 24 {
+        return None;
+    }
+    if buffer[0] != 0x89 || buffer[1] != 0x50 || buffer[2] != 0x4e || buffer[3] != 0x47 {
+        return None;
+    }
+    Some(ImageDimensions {
+        width_px: read_u32_be(&buffer, 16) as f64,
+        height_px: read_u32_be(&buffer, 20) as f64,
+    })
+}
+
+pub fn get_jpeg_dimensions(base64_data: &str) -> Option<ImageDimensions> {
+    let buffer = base64_decode(base64_data);
+    if buffer.len() < 4 || buffer[0] != 0xff || buffer[1] != 0xd8 {
+        return None;
+    }
+    let mut offset = 2usize;
+    while offset + 9 < buffer.len() {
+        if buffer[offset] != 0xff {
+            offset += 1;
+            continue;
+        }
+        let marker = buffer[offset + 1];
+        if marker == 0xd8 || marker == 0xd9 {
+            offset += 2;
+            continue;
+        }
+        if offset + 3 >= buffer.len() {
+            return None;
+        }
+        let length = read_u16_be(&buffer, offset + 2) as usize;
+        if (0xc0..=0xcf).contains(&marker) && marker != 0xc4 && marker != 0xc8 && marker != 0xcc {
+            if offset + 9 >= buffer.len() {
+                return None;
+            }
+            return Some(ImageDimensions {
+                width_px: read_u16_be(&buffer, offset + 7) as f64,
+                height_px: read_u16_be(&buffer, offset + 5) as f64,
+            });
+        }
+        offset += 2 + length;
+    }
+    None
+}
+
+pub fn get_gif_dimensions(base64_data: &str) -> Option<ImageDimensions> {
+    let buffer = base64_decode(base64_data);
+    if buffer.len() < 10 || &buffer[..6] != b"GIF87a" && &buffer[..6] != b"GIF89a" {
+        return None;
+    }
+    Some(ImageDimensions {
+        width_px: read_u16_le(&buffer, 6) as f64,
+        height_px: read_u16_le(&buffer, 8) as f64,
+    })
+}
+
+fn read_u16_le(bytes: &[u8], offset: usize) -> u16 {
+    bytes[offset] as u16 | ((bytes[offset + 1] as u16) << 8)
+}
+
+pub fn get_webp_dimensions(base64_data: &str) -> Option<ImageDimensions> {
+    let buffer = base64_decode(base64_data);
+    if buffer.len() < 30 || &buffer[..4] != b"RIFF" || &buffer[8..12] != b"WEBP" {
+        return None;
+    }
+    match &buffer[12..16] {
+        b"VP8 " => Some(ImageDimensions {
+            width_px: (read_u16_le(&buffer, 26) & 0x3fff) as f64,
+            height_px: (read_u16_le(&buffer, 28) & 0x3fff) as f64,
+        }),
+        b"VP8L" => Some(ImageDimensions {
+            width_px: (buffer[21] as u16 | ((buffer[22] as u16) << 8) & 0x3fff) as f64 + 1.0,
+            height_px: (buffer[22] as u16 >> 6 | (buffer[23] as u16) << 2 | ((buffer[24] as u16) << 10) & 0x3fff) as f64
+                + 1.0,
+        }),
+        b"VP8X" => {
+            let width = read_u32_le(&buffer, 24) & 0x00ff_ffff;
+            let height = read_u32_le(&buffer, 27) & 0x00ff_ffff;
+            Some(ImageDimensions {
+                width_px: (width + 1) as f64,
+                height_px: (height + 1) as f64,
+            })
+        }
+        _ => None,
+    }
+}
+
+fn read_u32_le(bytes: &[u8], offset: usize) -> u32 {
+    bytes[offset] as u32
+        | ((bytes[offset + 1] as u32) << 8)
+        | ((bytes[offset + 2] as u32) << 16)
+        | ((bytes[offset + 3] as u32) << 24)
+}
+
+pub fn get_image_dimensions(base64_data: &str, mime_type: &str) -> Option<ImageDimensions> {
+    match mime_type {
+        "image/png" => get_png_dimensions(base64_data),
+        "image/jpeg" => get_jpeg_dimensions(base64_data),
+        "image/gif" => get_gif_dimensions(base64_data),
+        "image/webp" => get_webp_dimensions(base64_data),
+        _ => None,
+    }
+}
+
+/// Render an image into a terminal sequence.
+pub struct RenderedImage {
+    pub sequence: String,
+    pub columns: f64,
+    pub rows: f64,
+    pub image_id: Option<u64>,
+}
+
+pub fn render_image(
+    base64_data: &str,
+    image_dimensions: ImageDimensions,
+    max_width_cells: Option<f64>,
+    max_height_cells: Option<f64>,
+    image_id: Option<u64>,
+    move_cursor: Option<bool>,
+) -> Option<RenderedImage> {
+    let caps = get_capabilities();
+    if caps.images.is_none() {
+        return None;
+    }
+    let max_width = max_width_cells.unwrap_or(80.0);
+    let size = calculate_image_cell_size(
+        image_dimensions.clone(),
+        max_width,
+        max_height_cells,
+        get_cell_dimensions(),
+    );
+    if caps.images.as_deref() == Some("kitty") {
+        if let Some(image_id) = image_id {
+            register_kitty_image_metadata(KittyImageMetadata {
+                image_id,
+                columns: size.columns,
+                rows: size.rows,
+                width_px: image_dimensions.width_px,
+                height_px: image_dimensions.height_px,
+            });
+        }
+        let sequence = encode_kitty(
+            base64_data,
+            Some(size.columns),
+            Some(size.rows),
+            image_id,
+            move_cursor,
+        );
+        Some(RenderedImage {
+            sequence,
+            columns: size.columns,
+            rows: size.rows,
+            image_id,
+        })
+    } else {
+        // iTerm2.
+        let sequence = encode_iterm2(
+            base64_data,
+            Some((size.columns * get_cell_dimensions().width_px).to_string()),
+            Some((size.rows * get_cell_dimensions().height_px).to_string()),
+            None,
+            None,
+            None,
+        );
+        Some(RenderedImage {
+            sequence,
+            columns: size.columns,
+            rows: size.rows,
+            image_id: None,
+        })
+    }
+}
+
+pub fn image_fallback(mime_type: &str, dimensions: Option<ImageDimensions>, filename: Option<&str>) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(filename) = filename {
+        parts.push(shorten_image_path(filename));
+    }
+    parts.push(format!("[{mime_type}]"));
+    if let Some(dimensions) = dimensions {
+        parts.push(format!("{}x{}", dimensions.width_px, dimensions.height_px));
+    }
+    format!("[Image: {}]", parts.join(" "))
+}
+
+fn shorten_image_path(filename: &str) -> String {
+    // Shorten paths to basename when long (JS shortens around 60 chars).
+    let basename = std::path::Path::new(filename)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| filename.to_string());
+    if basename.len() > 40 {
+        format!("…{}", &basename[basename.len() - 40..])
+    } else {
+        basename
+    }
+}
