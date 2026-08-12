@@ -660,3 +660,85 @@ pub fn json_stringify(value: &Value) -> String {
         }
     }
 }
+
+/// Serializes a value like `JSON.stringify(value, null, 2)` (two-space
+/// indentation). Used by settings/auth migrations.
+pub fn json_stringify_pretty(value: &Value) -> String {
+    fn quote(s: &str) -> String {
+        let mut result = String::with_capacity(s.len() + 2);
+        result.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => result.push_str("\""),
+                '\\' => result.push_str("\\\\"),
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                '\t' => result.push_str("\\t"),
+                '\u{08}' => result.push_str("\\b"),
+                '\u{0c}' => result.push_str("\\f"),
+                c if (c as u32) < 0x20 => result.push_str(&format!("\\u{:04x}", c as u32)),
+                c => result.push(c),
+            }
+        }
+        result.push('"');
+        result
+    }
+    fn number(n: f64) -> String {
+        if n == n.trunc() && n.abs() < 1e21 {
+            format!("{}", n as i64)
+        } else {
+            format!("{}", n)
+        }
+    }
+    fn write(value: &Value, indent: usize, out: &mut String) {
+        let pad = "  ".repeat(indent);
+        let child_pad = "  ".repeat(indent + 1);
+        match value {
+            Value::Null => out.push_str("null"),
+            Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+            Value::Number(n) => out.push_str(&number(*n)),
+            Value::String(s) => out.push_str(&quote(s)),
+            Value::Bytes(_) => out.push_str("{}"),
+            Value::Array(items) => {
+                if items.is_empty() {
+                    out.push_str("[]");
+                    return;
+                }
+                out.push_str("[\n");
+                for (i, item) in items.iter().enumerate() {
+                    out.push_str(&child_pad);
+                    write(item, indent + 1, out);
+                    if i + 1 < items.len() {
+                        out.push(',');
+                    }
+                    out.push('\n');
+                }
+                out.push_str(&pad);
+                out.push(']');
+            }
+            Value::Map(entries) => {
+                if entries.is_empty() {
+                    out.push_str("{}");
+                    return;
+                }
+                out.push_str("{\n");
+                for (i, (key, item)) in entries.iter().enumerate() {
+                    out.push_str(&child_pad);
+                    out.push_str(&quote(key));
+                    out.push_str(": ");
+                    write(item, indent + 1, out);
+                    if i + 1 < entries.len() {
+                        out.push(',');
+                    }
+                    out.push('\n');
+                }
+                out.push_str(&pad);
+                out.push('}');
+            }
+        }
+    }
+    let mut out = String::new();
+    write(value, 0, &mut out);
+    out
+}
+

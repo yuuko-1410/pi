@@ -52,49 +52,10 @@ pub fn random_hex_8() -> String {
 /// here a minimal CSI/OSC stripper suffices for bash output.
 pub fn sanitize_chunk(raw: &[u8]) -> String {
     let text = String::from_utf8_lossy(raw);
-    strip_ansi(&text).replace('\r', "")
+    crate::utils::basics::strip_ansi(&text).replace('\r', "")
 }
 
-fn strip_ansi(text: &str) -> String {
-    let mut result = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\u{1b}' {
-            match chars.peek() {
-                Some('[') => {
-                    chars.next();
-                    // CSI: consume until a final byte in @-~.
-                    for next in chars.by_ref() {
-                        if ('\u{40}'..='\u{7e}').contains(&next) {
-                            break;
-                        }
-                    }
-                }
-                Some(']') => {
-                    chars.next();
-                    // OSC: consume until BEL or ST.
-                    let mut pending_esc = false;
-                    for next in chars.by_ref() {
-                        if pending_esc && next == '\\' {
-                            break;
-                        }
-                        pending_esc = next == '\u{1b}';
-                        if next == '\u{07}' {
-                            break;
-                        }
-                    }
-                }
-                _ => {
-                    // Lone ESC followed by a single char (e.g. ESC 7).
-                    chars.next();
-                }
-            }
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
+
 
 /// Execute a bash command via the operations, streaming and truncating
 /// output. Mirror of executeBashWithOperations.
@@ -266,13 +227,6 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
         assert_eq!(content.len(), big.len());
         let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn ansi_stripping() {
-        assert_eq!(strip_ansi("\u{1b}[1mbold\u{1b}[0m"), "bold");
-        assert_eq!(strip_ansi("\u{1b}]0;title\u{07}text"), "text");
-        assert_eq!(strip_ansi("plain"), "plain");
     }
 
     #[test]

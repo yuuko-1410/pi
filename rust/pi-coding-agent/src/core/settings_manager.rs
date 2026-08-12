@@ -1054,7 +1054,8 @@ mod tests {
         let base = value_of(r#"{"retry": {"enabled": true, "maxRetries": 3}}"#);
         let overrides = value_of(r#"{"retry": {"maxRetries": 5}}"#);
         let merged = deep_merge(&base, &overrides);
-        let retry = get_field(&merged, "retry").unwrap().as_map().unwrap();
+        let retry_value = get_field(&merged, "retry").unwrap();
+        let retry = retry_value.as_map().unwrap();
         assert!(retry.iter().any(|(key, value)| key == "enabled" && value.as_bool() == Some(true)));
         assert!(retry.iter().any(|(key, value)| key == "maxRetries" && value.as_number() == Some(5.0)));
     }

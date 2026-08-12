@@ -97,3 +97,91 @@ mod tests {
         assert!(resolve_api_key_auth(&auth, None, None, &empty_env).is_none());
     }
 }
+/// Stored credential, mirroring the JS `Credential` union (one per provider).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Credential {
+    ApiKey { key: Option<String>, env: Option<ProviderEnv> },
+    OAuth { refresh: String, access: String, expires: f64, extra: Vec<(String, crate::types::JsonValue)> },
+}
+
+impl Credential {
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Credential::ApiKey { .. } => "api_key",
+            Credential::OAuth { .. } => "oauth",
+        }
+    }
+}
+
+/// Non-secret credential metadata for account/status enumeration.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CredentialInfo {
+    pub provider_id: String,
+    pub credential_type: String,
+}
+
+/// App-owned credential storage keyed by provider id. `modify` is the only
+/// write path so every mutation is a serialized read-modify-write.
+pub trait CredentialStore: Send + Sync {
+    fn read(&self, provider_id: &str) -> Option<Credential>;
+    fn list(&self) -> Vec<CredentialInfo>;
+    fn modify(
+        &self,
+        provider_id: &str,
+        update: Box<dyn FnOnce(Option<Credential>) -> Option<Credential> + Send>,
+    ) -> Option<Credential>;
+    fn delete(&self, provider_id: &str);
+}
+
+/// In-memory credential store (port of InMemoryCredentialStore).
+#[derive(Default)]
+pub struct InMemoryCredentialStore {
+    credentials: std::sync::Mutex<std::collections::HashMap<String, Credential>>,
+}
+
+impl InMemoryCredentialStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl CredentialStore for InMemoryCredentialStore {
+    fn read(&self, provider_id: &str) -> Option<Credential> {
+        self.credentials.lock().unwrap().get(provider_id).cloned()
+    }
+
+    fn list(&self) -> Vec<CredentialInfo> {
+        self.credentials
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(provider_id, credential)| CredentialInfo {
+                provider_id: provider_id.clone(),
+                credential_type: credential.type_name().to_string(),
+            })
+            .collect()
+    }
+
+    fn modify(
+        &self,
+        provider_id: &str,
+        update: Box<dyn FnOnce(Option<Credential>) -> Option<Credential> + Send>,
+    ) -> Option<Credential> {
+        let mut credentials = self.credentials.lock().unwrap();
+        let current = credentials.get(provider_id).cloned();
+        let updated = update(current);
+        match &updated {
+            Some(credential) => {
+                credentials.insert(provider_id.to_string(), credential.clone());
+            }
+            None => {
+                credentials.remove(provider_id);
+            }
+        }
+        updated
+    }
+
+    fn delete(&self, provider_id: &str) {
+        self.credentials.lock().unwrap().remove(provider_id);
+    }
+}
