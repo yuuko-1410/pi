@@ -9,5 +9,6 @@ pi-agent-core = { path = "../pi-agent-core" }
 pi-telemetry = { path = "../pi-telemetry" }
 pi-protocol = { path = "../pi-protocol" }
 pi-tui = { path = "../pi-tui" }
+pi-client = { path = "../pi-client" }
 base64 = "=0.22.1"
 regex = "1"

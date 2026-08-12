@@ -301,6 +301,7 @@ dependencies = [
  "base64",
  "pi-agent-core",
  "pi-ai",
+ "pi-client",
  "pi-protocol",
  "pi-telemetry",
  "pi-tui",
