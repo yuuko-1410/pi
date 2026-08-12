@@ -7,6 +7,8 @@ pub mod output_guard;
 pub mod pi_manifest;
 pub mod radius;
 pub mod session_cwd;
+pub mod session_manager;
 pub mod session_messages;
+pub mod session_paths;
 pub mod session_types;
 pub mod timings;
