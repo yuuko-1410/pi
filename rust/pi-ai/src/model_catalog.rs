@@ -78,11 +78,14 @@ pub fn model_from_json(value: &Value) -> Result<Model, String> {
     let provider = get_str(entries, "provider").ok_or("model missing provider")?.to_string();
     let base_url = get_str(entries, "baseUrl").unwrap_or("").to_string();
     let reasoning = get_bool(entries, "reasoning").unwrap_or(false);
-    let input = get_obj(entries, "input")
+    let input = entries
+        .iter()
+        .find(|(k, _)| k == "input")
+        .and_then(|(_, v)| v.as_array())
         .map(|input| {
             input
                 .iter()
-                .filter_map(|(_, v)| v.as_str())
+                .filter_map(|v| v.as_str())
                 .map(|s| s.to_string())
                 .collect()
         })

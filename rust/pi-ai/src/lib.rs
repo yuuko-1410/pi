@@ -13,6 +13,7 @@ pub mod api;
 pub mod auth;
 pub mod event_stream;
 pub mod model_catalog;
+pub mod models_store;
 pub mod models;
 pub mod http;
 pub mod types;
