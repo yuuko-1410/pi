@@ -82,11 +82,6 @@ impl ModelRuntime {
             None => ModelConfig::load(None),
         };
 
-        let _models_store: Box<dyn ModelsStore> = match &options.models_store_path {
-            Some(path) => Box::new(super::models_store::FileModelsStore::new(Some(path.clone()))),
-            None => Box::new(super::models_store::InMemoryCodingAgentModelsStore::new()),
-        };
-
         let mut runtime = ModelRuntime {
             credentials,
             config,
@@ -334,6 +329,21 @@ impl ModelRuntime {
     /// Model equality helper (id + provider).
     pub fn models_equal(a: Option<&Model>, b: Option<&Model>) -> bool {
         models_are_equal(a, b)
+    }
+}
+
+impl super::model_resolver::ModelRuntimeLike for ModelRuntime {
+    fn get_models(&self) -> Vec<Model> {
+        ModelRuntime::get_models(self, None)
+    }
+    fn get_available_snapshot(&self) -> Vec<Model> {
+        ModelRuntime::get_available_snapshot(self)
+    }
+    fn get_model(&self, provider: &str, model_id: &str) -> Option<Model> {
+        ModelRuntime::get_model(self, provider, model_id)
+    }
+    fn has_configured_auth(&self, provider: &str) -> bool {
+        ModelRuntime::has_configured_auth(self, provider)
     }
 }
 

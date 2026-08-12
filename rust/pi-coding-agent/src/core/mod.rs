@@ -24,6 +24,7 @@ pub mod model_resolver;
 pub mod provider_composer;
 pub mod model_runtime;
 pub mod agent_session;
+pub mod sdk;
 pub mod timings;
 pub mod trust_manager;
 pub mod project_trust;
