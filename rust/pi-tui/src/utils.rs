@@ -980,6 +980,117 @@ pub fn is_punctuation_char(char: char) -> bool {
     )
 }
 
+/// Wrap text with ANSI codes preserved (word wrapping only; no padding).
+/// Port of wrapTextWithAnsi with a simplified tokenizer.
+pub fn wrap_text_with_ansi(text: &str, width: f64) -> Vec<String> {
+    if text.is_empty() {
+        return vec![String::new()];
+    }
+    let mut result: Vec<String> = Vec::new();
+    let has_newline = text.contains('\n');
+    for input_line in text.split(['\r', '\n']) {
+        if input_line.is_empty() && !has_newline && !result.is_empty() {
+            continue;
+        }
+        let wrapped = wrap_single_line(input_line, width);
+        result.extend(wrapped);
+    }
+    if result.is_empty() {
+        result.push(String::new());
+    }
+    result
+}
+
+fn wrap_single_line(line: &str, width: f64) -> Vec<String> {
+    if line.is_empty() {
+        return vec![String::new()];
+    }
+    if visible_width(line) <= width {
+        return vec![line.to_string()];
+    }
+    let mut wrapped: Vec<String> = Vec::new();
+    let tokens = split_tokens_with_ansi(line);
+    let mut current_line = String::new();
+    let mut current_width = 0.0;
+    for token in tokens {
+        let token_width = visible_width(&token);
+        let is_whitespace = token.trim().is_empty();
+        if token_width > width && !is_whitespace {
+            if !current_line.is_empty() {
+                wrapped.push(current_line.trim_end().to_string());
+                current_line = String::new();
+                current_width = 0.0;
+            }
+            // Break the long token by graphemes.
+            let mut fragment = String::new();
+            let mut fragment_width = 0.0;
+            for cluster in graphemes(&token) {
+                let cluster_width = grapheme_width(&cluster);
+                if fragment_width + cluster_width > width && !fragment.is_empty() {
+                    wrapped.push(fragment.clone());
+                    fragment.clear();
+                    fragment_width = 0.0;
+                }
+                fragment += &cluster;
+                fragment_width += cluster_width;
+            }
+            current_line = fragment;
+            current_width = fragment_width;
+            continue;
+        }
+        let total_needed = current_width + token_width;
+        if total_needed > width && current_width > 0.0 {
+            wrapped.push(current_line.trim_end().to_string());
+            if !is_whitespace {
+                current_line = token.clone();
+                current_width = token_width;
+            } else {
+                current_line.clear();
+                current_width = 0.0;
+            }
+        } else {
+            current_line += &token;
+            current_width += token_width;
+        }
+    }
+    if !current_line.is_empty() {
+        wrapped.push(current_line.trim_end().to_string());
+    }
+    if wrapped.is_empty() {
+        wrapped.push(String::new());
+    }
+    wrapped
+}
+
+fn split_tokens_with_ansi(text: &str) -> Vec<String> {
+    let mut tokens: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut current_kind: Option<char> = None; // 's' space, 'w' word
+    let mut i = 0;
+    let bytes = text.as_bytes();
+    while i < bytes.len() {
+        if let Some(ansi) = extract_ansi_code(text, i) {
+            current += &ansi.code;
+            i += ansi.length;
+            continue;
+        }
+        let char = text[i..].chars().next().unwrap();
+        let kind = if char == ' ' { 's' } else { 'w' };
+        if let Some(previous_kind) = current_kind {
+            if previous_kind != kind && !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+        }
+        current.push(char);
+        current_kind = Some(kind);
+        i += char.len_utf8();
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    tokens
+}
+
 fn is_printable_ascii(str: &str) -> bool {
     str.chars().all(|c| {
         let code = c as u32;

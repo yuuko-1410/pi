@@ -13,6 +13,45 @@ fn to_display_path(value: &str) -> String {
     value.replace('\\', "/")
 }
 
+fn escape_regex(value: &str) -> String {
+    value
+        .chars()
+        .flat_map(|c| {
+            if ".*+?^${}()|[]\\".contains(c) {
+                vec!['\\', c]
+            } else {
+                vec![c]
+            }
+        })
+        .collect()
+}
+
+pub fn build_fd_path_query(query: &str) -> String {
+    let normalized = to_display_path(query);
+    if !normalized.contains('/') {
+        return normalized;
+    }
+    let has_trailing_separator = normalized.ends_with('/');
+    let trimmed = normalized.trim_matches('/').to_string();
+    if trimmed.is_empty() {
+        return normalized;
+    }
+    let separator_pattern = "[\\\\/]";
+    let segments: Vec<String> = trimmed
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(escape_regex)
+        .collect();
+    if segments.is_empty() {
+        return normalized;
+    }
+    let mut pattern = segments.join(separator_pattern);
+    if has_trailing_separator {
+        pattern += separator_pattern;
+    }
+    pattern
+}
+
 fn find_last_delimiter(text: &str) -> isize {
     let chars: Vec<char> = text.chars().collect();
     for index in (0..chars.len()).rev() {

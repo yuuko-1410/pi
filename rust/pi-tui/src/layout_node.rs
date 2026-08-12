@@ -36,7 +36,7 @@ impl std::fmt::Debug for StackLayoutEntry {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LayoutAlign {
     Stretch,
     Start,
