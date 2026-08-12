@@ -1171,7 +1171,7 @@ mod tests {
     #[test]
     fn history_navigation() {
         let mut ed = editor();
-        let kb = keybindings();
+        let _kb = keybindings();
         ed.add_to_history("first");
         ed.add_to_history("second");
         ed.navigate_history(-1);

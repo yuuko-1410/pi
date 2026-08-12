@@ -41,13 +41,6 @@ fn opt_num(value: Option<f64>) -> Value {
     }
 }
 
-fn opt_bool(value: Option<bool>) -> Value {
-    match value {
-        Some(value) => Value::Bool(value),
-        None => Value::Null,
-    }
-}
-
 fn opt_value(value: Option<Value>) -> Value {
     value.unwrap_or(Value::Null)
 }
@@ -141,7 +134,7 @@ pub fn agent_message_to_json(message: &AgentMessage) -> Value {
                                     kv("data", str(&image.data)),
                                     kv("mimeType", str(&image.mime_type)),
                                 ]),
-                                other => Value::Map(vec![kv("type", str("unknown"))]),
+                                _other => Value::Map(vec![kv("type", str("unknown"))]),
                             })
                             .collect(),
                     ),
@@ -217,7 +210,7 @@ pub fn agent_message_to_json(message: &AgentMessage) -> Value {
                                 kv("data", str(&image.data)),
                                 kv("mimeType", str(&image.mime_type)),
                             ]),
-                            other => Value::Map(vec![kv("type", str("unknown"))]),
+                            _other => Value::Map(vec![kv("type", str("unknown"))]),
                         })
                         .collect(),
                 ),
@@ -225,7 +218,7 @@ pub fn agent_message_to_json(message: &AgentMessage) -> Value {
             kv("isError", Value::Bool(tool_result.is_error)),
             kv("timestamp", num(tool_result.timestamp)),
         ]),
-        AgentMessage::Custom(custom) => Value::Map(vec![kv("role", str("custom"))]),
+        AgentMessage::Custom(_custom) => Value::Map(vec![kv("role", str("custom"))]),
     }
 }
 

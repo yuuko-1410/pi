@@ -369,7 +369,8 @@ pub fn create_coding_agent_harness(
 mod tests {
     use super::*;
 
-    fn make_model() -> Model {
+    #[allow(dead_code)]
+fn make_model() -> Model {
         Model {
             id: "m".to_string(),
             name: "m".to_string(),

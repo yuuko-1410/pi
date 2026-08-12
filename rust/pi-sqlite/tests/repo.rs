@@ -8,7 +8,7 @@ use pi_agent_core::harness::session_types::{
 };
 use pi_agent_core::types::AgentMessage;
 use pi_protocol::cbor::Value;
-use pi_sqlite::repo::{SqliteSessionRepository, SqliteSessionRepositoryOptions, SqliteSessionStorage};
+use pi_sqlite::repo::{SqliteSessionRepository, SqliteSessionRepositoryOptions};
 
 static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 

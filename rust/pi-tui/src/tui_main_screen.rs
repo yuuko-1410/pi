@@ -452,7 +452,7 @@ mod tests {
     #[test]
     fn extracts_cursor_marker() {
         let mut lines = vec!["abc".to_string(), format!("xy{CURSOR_MARKER}z")];
-        let mut screen = TuiMainScreen {
+        let screen = TuiMainScreen {
             base: TuiBase::new(
                 Arc::new(Mutex::new(NoopTerminal)),
                 Arc::new(|| {}),

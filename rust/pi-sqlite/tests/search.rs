@@ -5,7 +5,6 @@ use pi_sqlite::storage::entries::{insert_entry_row, NewEntryRow};
 use pi_sqlite::storage::sessions::{insert_session_row, NewSessionRow};
 use pi_sqlite::database::{query_run, RusqliteDatabase};
 use pi_sqlite::migrations::apply_migrations;
-use pi_sqlite::sql::SqlPart;
 
 fn new_db() -> RusqliteDatabase {
     let db = RusqliteDatabase::open_in_memory().unwrap();

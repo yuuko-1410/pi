@@ -754,6 +754,7 @@ mod tests {
         assert!(frame.lines[2].contains("bb"));
     }
 
+    #[allow(dead_code)]
     struct VStackComponent {
         entries: Vec<StackLayoutEntry>,
         gap: f64,

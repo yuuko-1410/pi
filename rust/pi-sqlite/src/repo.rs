@@ -113,10 +113,6 @@ fn bool(value: bool) -> Value {
     Value::Bool(value)
 }
 
-fn null() -> Value {
-    Value::Null
-}
-
 /// Serialize an entry to its payload object (JS `entryPayload`: storage
 /// fields stripped).
 pub fn entry_payload(entry: &Entry) -> Value {
@@ -402,6 +398,7 @@ fn set_record_seq_timestamp(record: &mut LaneRecord, seq: f64, timestamp: f64) {
 pub struct SqliteSessionStorage {
     db: Arc<RusqliteDatabase>,
     session_id: String,
+    #[allow(dead_code)] // mirrors the JS storage's metadata property
     metadata: Mutex<SqliteSessionMetadata>,
     lease: Mutex<WriterLease>,
     lease_options: ResolvedWriterLeaseOptions,

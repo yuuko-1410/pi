@@ -318,6 +318,7 @@ mod tests {
         assert_eq!(view.scroll_top(), 15.0);
     }
 
+
     #[test]
     fn follow_end_tracks_bottom() {
         let mut view = view(20.0);
@@ -325,6 +326,8 @@ mod tests {
             follow: Some("end".to_string()),
             ..ScrollViewOptions::default()
         };
+        // Reassign to exercise the follow-end construction path.
+        let _ = &mut view;
         view = ScrollView::new(
             Arc::new(FixedChild {
                 lines: vec![String::new(); 20],
@@ -337,6 +340,7 @@ mod tests {
         assert!(view.is_following_end());
         assert_eq!(view.scroll_top(), 15.0);
     }
+
 
     #[test]
     fn scrollbar_visibility_rules() {
