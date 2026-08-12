@@ -3,3 +3,4 @@
 pub mod fuzzy;
 pub mod native_modifiers;
 pub mod terminal_colors;
+pub mod utils;
