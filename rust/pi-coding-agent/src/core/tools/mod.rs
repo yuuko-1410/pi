@@ -1,6 +1,7 @@
 //! Tool-related utilities (port of ).
 
 pub mod bash_executor;
+pub mod create;
 pub mod edit_diff;
 pub mod edit;
 pub mod file_mutation_queue;

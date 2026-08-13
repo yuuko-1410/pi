@@ -19,3 +19,27 @@ pub mod pi_messages;
 pub mod prompt_cache;
 pub mod simple_options;
 pub mod transform_messages;
+
+/// Dispatch a stream by `model.api`, mirroring the JS streamSimple
+/// provider-selection switch in `src/index.ts`.
+pub fn dispatch_stream_simple(
+    model: &crate::types::Model,
+    context: &crate::types::Context,
+    options: Option<&crate::types::SimpleStreamOptions>,
+    api_key: Option<&str>,
+    client: &crate::http::client::HttpClient,
+) -> crate::event_stream::AssistantMessageEventStream {
+    match model.api.as_str() {
+        "openai" => openai_responses::stream_simple(model, context, options, api_key, client),
+        "openai-completions" => {
+            openai_completions::stream_simple(model, context, options, api_key, client)
+        }
+        "openai-codex" => openai_codex_responses::stream_simple(model, context, options, api_key, client, None),
+        "anthropic" => anthropic_messages::stream_simple(model, context, options, api_key, client),
+        "google" => google_generative_ai::stream_simple(model, context, options, api_key, client),
+        "azure-openai-responses" => {
+            azure_openai_responses::stream_simple(model, context, options, api_key, client)
+        }
+        other => panic!("unsupported model api: {other}"),
+    }
+}

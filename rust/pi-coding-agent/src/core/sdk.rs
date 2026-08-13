@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use pi_ai::types::Model;
+use pi_ai::types::{Model, SimpleStreamOptions};
 use pi_agent_core::agent::{Agent, AgentOptions, MutableAgentState};
 
 use super::agent_session::{AgentSession, AgentSessionConfig};
@@ -179,6 +179,56 @@ pub fn create_agent_session(options: CreateAgentSessionOptions) -> Result<Create
             .collect()
     };
 
+    // Stream fn dispatching through the model runtime auth resolution.
+    let runtime_for_stream = std::sync::Arc::new(model_runtime);
+    let stream_fn: std::sync::Arc<
+        dyn Fn(&Model, &pi_ai::types::Context, Option<&pi_ai::types::SimpleStreamOptions>) -> pi_ai::event_stream::AssistantMessageEventStream
+            + Send
+            + Sync,
+    > = {
+        let runtime_for_stream = runtime_for_stream.clone();
+        std::sync::Arc::new(move |model, context, options| {
+        let runtime = &runtime_for_stream;
+        let auth = runtime.get_auth(model);
+        let api_key = auth
+            .as_ref()
+            .and_then(|auth| auth.api_key.as_deref());
+        // ponytail: auth baseUrl overrides are not applied (the model's own
+        // baseUrl from the catalog is used); auth headers merge under
+        // request-provided headers.
+        let mut stream_options = options.cloned().unwrap_or_else(|| {
+            SimpleStreamOptions {
+                stream: Default::default(),
+                reasoning: None,
+                deferred: None,
+                thinking_budgets: None,
+            }
+        });
+        if let Some(auth) = &auth {
+            if !auth.headers.is_empty() {
+                let mut headers: Vec<(String, Option<String>)> = auth
+                    .headers
+                    .iter()
+                    .map(|(key, value)| (key.clone(), Some(value.clone())))
+                    .collect();
+                let existing = stream_options.stream.request.headers.get_or_insert(Vec::new());
+                for (key, value) in headers.drain(..) {
+                    if !existing.iter().any(|(k, _)| k == &key) {
+                        existing.push((key, value));
+                    }
+                }
+            }
+        }
+        pi_ai::api::dispatch_stream_simple(
+            model,
+            context,
+            Some(&stream_options),
+            api_key,
+            &pi_ai::http::client::HttpClient::new(),
+        )
+        })
+    };
+
     // Build the agent with the session state.
     let mut initial_state = MutableAgentState::default();
     initial_state.model = model.clone().unwrap_or_else(|| {
@@ -216,6 +266,7 @@ pub fn create_agent_session(options: CreateAgentSessionOptions) -> Result<Create
 
     let mut agent = Agent::new(AgentOptions {
         initial_state: Some(initial_state),
+        stream_fn,
         ..Default::default()
     });
 
@@ -240,17 +291,33 @@ pub fn create_agent_session(options: CreateAgentSessionOptions) -> Result<Create
     });
 
     let session = Arc::new(AgentSession::new(AgentSessionConfig {
+        model_runtime: runtime_for_stream.clone(),
         agent,
         session_manager,
         settings_manager,
         scoped_models: options.scoped_models.clone(),
         resource_loader,
         custom_tools: options.custom_tools.clone(),
-        cwd,
-        model_runtime: Arc::new(model_runtime),
+        cwd: cwd.clone(),
     }));
-    let _ = initial_active_tool_names;
-    let _: Option<&mut ModelRuntime> = None;
+    // Register the active built-in tools on the agent and rebuild the system
+    // prompt so the model sees them.
+    {
+        let mut tools = Vec::new();
+        let definitions = crate::core::tools::create::create_coding_tools(cwd.as_str());
+        for definition in definitions {
+            if initial_active_tool_names.contains(&definition.name) {
+                tools.push(crate::core::extensions::types::tool_to_agent_tool(&definition));
+            }
+        }
+        {
+            let agent = session.agent();
+            let mut guard = agent.lock().unwrap();
+            let mut state = guard.state_mut();
+            state.tools = tools;
+        }
+        session.rebuild_system_prompt(&initial_active_tool_names);
+    }
 
     Ok(CreateAgentSessionResult {
         session,

@@ -60,7 +60,11 @@ pub fn tool_to_agent_tool(tool: &ToolDefinition) -> AgentTool {
         tool: pi_ai::types::Tool {
             name: tool.name.clone(),
             description: tool.description.clone(),
-            parameters: empty_json_schema(),
+            parameters: tool
+                .parameters
+                .as_ref()
+                .map(pi_ai::utils::schema::json_value_to_schema)
+                .unwrap_or_else(empty_json_schema),
             constrained_sampling: None,
         },
         label: tool.name.clone(),

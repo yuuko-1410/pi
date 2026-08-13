@@ -1823,8 +1823,8 @@ pub fn stream(
             });
 
             // Stream state.
-            let mut text_block: Option<TextContent> = None;
-            let mut thinking_block: Option<ThinkingContent> = None;
+            let mut text_block: Option<usize> = None;
+            let mut thinking_block: Option<usize> = None;
             let mut has_finish_reason = false;
             let mut tool_call_blocks_by_index: std::collections::HashMap<u64, StreamingBlock> =
                 std::collections::HashMap::new();
@@ -1956,8 +1956,8 @@ fn process_chunk(
     model: &Model,
     compat: &ResolvedOpenAICompletionsCompat,
     grammar_tool_input_properties: &[(String, String)],
-    text_block: &mut Option<TextContent>,
-    thinking_block: &mut Option<ThinkingContent>,
+    text_block: &mut Option<usize>,
+    thinking_block: &mut Option<usize>,
     has_finish_reason: &mut bool,
     tool_call_blocks_by_index: &mut std::collections::HashMap<u64, StreamingBlock>,
     tool_call_blocks_by_id: &mut std::collections::HashMap<String, StreamingBlock>,
@@ -2019,23 +2019,23 @@ fn process_chunk(
     if let Some(content) = get_string(delta, "content") {
         if !content.is_empty() {
             if text_block.is_none() {
-                let block = TextContent {
+                output.content.push(Content::Text(TextContent {
                     text: String::new(),
                     text_signature: None,
-                };
-                output.content.push(Content::Text(block.clone()));
+                }));
                 let content_index = (output.content.len() - 1) as f64;
-                *text_block = Some(block);
+                *text_block = Some(output.content.len() - 1);
                 stream.push(crate::types::AssistantMessageEvent::TextStart {
                     content_index,
                     partial: output.clone(),
                 });
             }
-            let block = text_block.as_mut().expect("set above");
-            block.text.push_str(content);
-            let content_index = (output.content.len() - 1) as f64;
+            let index = text_block.expect("set above");
+            if let Content::Text(block) = &mut output.content[index] {
+                block.text.push_str(content);
+            }
             stream.push(crate::types::AssistantMessageEvent::TextDelta {
-                content_index,
+                content_index: index as f64,
                 delta: content.to_string(),
                 partial: output.clone(),
             });
@@ -2060,24 +2060,24 @@ fn process_chunk(
             field
         };
         if thinking_block.is_none() {
-            let block = ThinkingContent {
+            output.content.push(Content::Thinking(ThinkingContent {
                 thinking: String::new(),
                 thinking_signature: Some(thinking_signature.clone()),
                 redacted: None,
-            };
-            output.content.push(Content::Thinking(block.clone()));
-            *thinking_block = Some(block);
+            }));
             let content_index = (output.content.len() - 1) as f64;
+            *thinking_block = Some(output.content.len() - 1);
             stream.push(crate::types::AssistantMessageEvent::ThinkingStart {
                 content_index,
                 partial: output.clone(),
             });
         }
-        let block = thinking_block.as_mut().expect("set above");
-        block.thinking.push_str(&delta_text);
-        let content_index = (output.content.len() - 1) as f64;
+        let index = thinking_block.expect("set above");
+        if let Content::Thinking(block) = &mut output.content[index] {
+            block.thinking.push_str(&delta_text);
+        }
         stream.push(crate::types::AssistantMessageEvent::ThinkingDelta {
-            content_index,
+            content_index: index as f64,
             delta: delta_text,
             partial: output.clone(),
         });
